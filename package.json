@@ -1,0 +1,13 @@
+{
+  "name": "web3-storage-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/api/server.ts",
+    "start": "bun src/api/server.ts",
+    "worker": "bun src/workers/index.ts",
+    "test": "vitest run",
+    "lint": "biome check ."
+  }
+}

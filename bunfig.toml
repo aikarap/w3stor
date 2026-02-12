@@ -1,0 +1,13 @@
+[install]
+registry = "https://registry.npmjs.org/"
+optional = true
+peer = true
+
+[install.cache]
+dir = "node_modules/.cache/bun"
+
+[test]
+coverage = false
+coverageDir = "coverage"
+timeout = 10000
+bail = false

@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# Lock files
+package-lock.json
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# Database
+*.db
+*.sqlite
+
+# Redis
+dump.rdb
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# MCP config (may contain secrets)
+.mcp.json
+
+# Agent files
+.agents/
+.claude/
+
+# Turborepo
+.turbo/
+*.tsbuildinfo
+
+# Legacy directories
+/FOC/
+/files/
+/planning-old-initial/
+
+# External workspaces (internalized to src/lib/)
+/a2a-js/
+/x402/
+
+/a-feature
