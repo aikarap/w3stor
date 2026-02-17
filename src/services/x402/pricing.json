@@ -1,0 +1,28 @@
+{
+	"operations": {
+		"upload": {
+			"pricePerMB": 0.0001,
+			"minimumCharge": 0.00001
+		},
+		"attestation": {
+			"pricePerOperation": 0.5
+		},
+		"workflow-execute": {
+			"pricePerOperation": 0.001
+		}
+	},
+	"networks": {
+		"eip155:84532": {
+			"name": "Base Sepolia",
+			"chainId": 84532,
+			"multiplier": 1.0,
+			"tokens": {
+				"USDC": {
+					"address": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+					"decimals": 6,
+					"multiplier": 1.0
+				}
+			}
+		}
+	}
+}
