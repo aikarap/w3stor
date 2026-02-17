@@ -113,3 +113,4 @@ export async function getTokenEip712Domain(
 	eip712Cache.set(cacheKey, domain);
 	return domain;
 }
+
