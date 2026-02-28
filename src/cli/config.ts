@@ -24,3 +24,4 @@ const config = new Conf<{
 });
 
 export default config;
+
