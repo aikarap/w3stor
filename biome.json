@@ -1,0 +1,91 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.9/schema.json",
+	"files": {
+		"includes": ["**"],
+		"experimentalScannerIgnores": [
+			"**/node_modules",
+			"**/dist",
+			"**/.next",
+			"**/.turbo",
+			"**/bun.lock"
+		]
+	},
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"indentWidth": 2,
+		"lineWidth": 100
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"semicolons": "always"
+		}
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"suspicious": {
+				"noExplicitAny": "warn",
+				"noArrayIndexKey": "off",
+				"noImplicitAnyLet": "warn",
+				"noAssignInExpressions": "warn",
+				"noUnknownAtRules": {
+					"level": "error",
+					"options": {
+						"ignore": [
+							"tailwind",
+							"apply",
+							"layer",
+							"theme",
+							"utility",
+							"source",
+							"plugin",
+							"import"
+						]
+					}
+				}
+			},
+			"a11y": {
+				"recommended": false,
+				"useSemanticElements": "warn",
+				"noAriaHiddenOnFocusable": "warn",
+				"useValidAriaRole": "warn",
+				"noLabelWithoutControl": "warn",
+				"useButtonType": "warn",
+				"noSvgWithoutTitle": "warn",
+				"useAnchorContent": "warn",
+				"useKeyWithClickEvents": "warn"
+			},
+			"performance": {
+				"noImgElement": "off"
+			},
+			"complexity": {
+				"noBannedTypes": "warn"
+			},
+			"correctness": {
+				"noUnusedImports": "warn",
+				"noUnusedVariables": "warn",
+				"noUnusedFunctionParameters": "warn"
+			},
+			"security": {
+				"noDangerouslySetInnerHtml": "warn"
+			},
+			"style": {
+				"noNonNullAssertion": "off",
+				"useImportType": "warn"
+			}
+		}
+	}
+}
