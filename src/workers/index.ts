@@ -377,3 +377,4 @@ async function shutdownWorker(signal: string): Promise<void> {
 
 process.on("SIGTERM", () => shutdownWorker("SIGTERM"));
 process.on("SIGINT", () => shutdownWorker("SIGINT"));
+
