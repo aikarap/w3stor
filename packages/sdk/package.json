@@ -1,0 +1,77 @@
+{
+	"name": "@w3stor/sdk",
+	"version": "0.1.0",
+	"description": "SDK for W3Stor — decentralized storage on Filecoin with AI agent integration",
+	"private": false,
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"import": "./dist/index.js"
+		},
+		"./ai": {
+			"types": "./src/ai.ts",
+			"import": "./dist/ai.js"
+		},
+		"./a2a": {
+			"types": "./src/a2a.ts",
+			"import": "./dist/a2a.js"
+		},
+		"./mastra": {
+			"types": "./src/mastra.ts",
+			"import": "./dist/mastra.js"
+		}
+	},
+	"files": [
+		"dist",
+		"src",
+		"README.md",
+		"LICENSE"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"build": "bun build src/index.ts src/ai.ts src/a2a.ts src/mastra.ts --outdir dist --target node --format esm --external ai --external zod --external @a2a-js/sdk --splitting",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"prepublishOnly": "bun run build"
+	},
+	"peerDependencies": {
+		"ai": "^6",
+		"zod": "^3.24"
+	},
+	"peerDependenciesMeta": {
+		"@a2a-js/sdk": {
+			"optional": true
+		}
+	},
+	"dependencies": {
+		"@a2a-js/sdk": "^0.3.10"
+	},
+	"devDependencies": {
+		"@w3stor/shared": "workspace:*",
+		"@w3stor/db": "workspace:*",
+		"@w3stor/modules": "workspace:*",
+		"@types/bun": "latest",
+		"ai": "^6",
+		"zod": "^3.24"
+	},
+	"keywords": [
+		"filecoin",
+		"ipfs",
+		"web3",
+		"storage",
+		"ai",
+		"agent",
+		"a2a",
+		"mcp",
+		"x402"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aikarap/w3stor",
+		"directory": "packages/sdk"
+	}
+}
