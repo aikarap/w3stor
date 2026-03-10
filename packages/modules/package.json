@@ -1,0 +1,35 @@
+{
+	"name": "@w3stor/modules",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./filecoin": "./src/filecoin/index.ts",
+		"./pinata": "./src/pinata/client.ts",
+		"./x402": "./src/x402/index.ts",
+		"./queue": "./src/queue/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@w3stor/shared": "workspace:*",
+		"@w3stor/db": "workspace:*",
+		"@filoz/synapse-core": "^0.3.0",
+		"@filoz/synapse-sdk": "^0.39.0",
+		"@ipld/car": "^5.4.2",
+		"@x402/core": "^2.3.0",
+		"@x402/evm": "^2.3.0",
+		"bullmq": "^5.70.4",
+		"ioredis": "^5.10.0",
+		"ipfs-unixfs-importer": "^16.0.3",
+		"multiformats": "^13.4.2",
+		"pinata": "^1.0.0",
+		"viem": "^2.47.1"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
+}
