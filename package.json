@@ -1,13 +1,34 @@
 {
-  "name": "web3-storage-agent",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "bun --watch src/api/server.ts",
-    "start": "bun src/api/server.ts",
-    "worker": "bun src/workers/index.ts",
-    "test": "vitest run",
-    "lint": "biome check ."
-  }
+	"name": "w3stor",
+	"private": true,
+	"type": "module",
+	"packageManager": "bun@1.2.12",
+	"workspaces": [
+		"packages/*",
+		"apps/*"
+	],
+	"scripts": {
+		"dev": "turbo dev",
+		"dev:services": "docker compose up -d --wait",
+		"setup": "bun run dev:services && bun run db:migrate",
+		"start": "bun run setup && bun run dev",
+		"build": "turbo build",
+		"test": "turbo test",
+		"typecheck": "turbo typecheck",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"db:generate": "bun --filter @w3stor/db generate",
+		"db:migrate": "bun run packages/db/src/migrate.ts",
+		"db:seed": "bun --filter @w3stor/db seed",
+		"db:studio": "bun --filter @w3stor/db studio",
+		"worker": "bun --filter @w3stor/workers dev"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.6",
+		"ai": "^6.0.141",
+		"turbo": "^2",
+		"typescript": "^5.7",
+		"zod": "^4.3.6"
+	}
 }
