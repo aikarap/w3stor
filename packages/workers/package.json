@@ -1,0 +1,22 @@
+{
+	"name": "@w3stor/workers",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"dev": "bun --env-file=../../.env --watch src/index.ts",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"build": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@w3stor/shared": "workspace:*",
+		"@w3stor/db": "workspace:*",
+		"@w3stor/modules": "workspace:*",
+		"bullmq": "^5.70.4",
+		"ioredis": "^5.10.0"
+	}
+}

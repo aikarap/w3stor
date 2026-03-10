@@ -1,0 +1,32 @@
+{
+	"name": "@w3stor/api",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./hono": "./src/hono.ts"
+	},
+	"scripts": {
+		"dev": "bun --env-file=../../.env --watch src/index.ts",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"build": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@w3stor/shared": "workspace:*",
+		"@w3stor/db": "workspace:*",
+		"@w3stor/modules": "workspace:*",
+		"@w3stor/sdk": "workspace:*",
+		"@a2a-js/sdk": "^0.3.10",
+		"@x402/core": "^2.8.0",
+		"@x402/evm": "^2.8.0",
+		"hono": "^4",
+		"ai": "^6",
+		"socket.io": "^4",
+		"zod": "^3.24"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
+}
