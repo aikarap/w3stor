@@ -1,0 +1,93 @@
+# This workflow is currently deactivated (manual dispatch only).
+# To activate automatic publishing, add triggers such as:
+#
+#   on:
+#     release:
+#       types: [published]
+#     push:
+#       branches: [main]
+#       paths:
+#         - 'packages/sdk/**'
+#         - 'packages/cli/**'
+#
+# For now, trigger it manually from the Actions tab using workflow_dispatch.
+
+name: Publish Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Which package to publish"
+        required: true
+        type: choice
+        options:
+          - sdk
+          - cli
+          - both
+      dry_run:
+        description: "Dry run (skip actual publish)"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  publish-sdk:
+    if: ${{ inputs.package == 'sdk' || inputs.package == 'both' }}
+    name: Publish @w3stor/sdk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build SDK
+        run: bun --filter @w3stor/sdk build
+
+      - name: Publish SDK
+        working-directory: packages/sdk
+        run: npm publish ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-cli:
+    if: ${{ inputs.package == 'cli' || inputs.package == 'both' }}
+    name: Publish @w3stor/cli
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build CLI
+        run: bun --filter @w3stor/cli build
+
+      - name: Publish CLI
+        working-directory: packages/cli
+        run: npm publish ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

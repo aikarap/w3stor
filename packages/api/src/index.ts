@@ -24,4 +24,3 @@ const server = Bun.serve({
 logger.info(`@w3stor/api listening on http://localhost:${server.port}`);
 
 export { app };
-
