@@ -1,0 +1,264 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--font-sans: var(--font-geist-sans);
+	--font-mono: var(--font-geist-mono);
+	--color-sidebar-ring: var(--sidebar-ring);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar: var(--sidebar);
+	--color-chart-5: var(--chart-5);
+	--color-chart-4: var(--chart-4);
+	--color-chart-3: var(--chart-3);
+	--color-chart-2: var(--chart-2);
+	--color-chart-1: var(--chart-1);
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--color-destructive: var(--destructive);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent: var(--accent);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-muted: var(--muted);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-secondary: var(--secondary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary: var(--primary);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-popover: var(--popover);
+	--color-card-foreground: var(--card-foreground);
+	--color-card: var(--card);
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+	--animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+	--animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+	@keyframes shimmer-slide {
+		to {
+			transform: translate(calc(100cqw - 100%), 0);
+		}
+	}
+	@keyframes spin-around {
+		0% {
+			transform: translateZ(0) rotate(0);
+		}
+		15%,
+		35% {
+			transform: translateZ(0) rotate(90deg);
+		}
+		65%,
+		85% {
+			transform: translateZ(0) rotate(270deg);
+		}
+		100% {
+			transform: translateZ(0) rotate(360deg);
+		}
+	}
+	--animate-marquee: marquee var(--duration) infinite linear;
+	--animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+	@keyframes marquee {
+		from {
+			transform: translateX(0);
+		}
+		to {
+			transform: translateX(calc(-100% - var(--gap)));
+		}
+	}
+	@keyframes marquee-vertical {
+		from {
+			transform: translateY(0);
+		}
+		to {
+			transform: translateY(calc(-100% - var(--gap)));
+		}
+	}
+	--animate-blink-cursor: blink-cursor 1.2s step-end infinite;
+	@keyframes blink-cursor {
+		0%,
+		49% {
+			opacity: 1;
+		}
+		50%,
+		100% {
+			opacity: 0;
+		}
+	}
+	--animate-ripple: ripple var(--duration, 2s) ease calc(var(--i, 0) * 0.2s) infinite;
+	@keyframes ripple {
+		0%,
+		100% {
+			transform: translate(-50%, -50%) scale(1);
+		}
+		50% {
+			transform: translate(-50%, -50%) scale(0.9);
+		}
+	}
+	--animate-meteor: meteor 5s linear infinite;
+	@keyframes meteor {
+		0% {
+			transform: rotate(var(--angle)) translateX(0);
+			opacity: 1;
+		}
+		70% {
+			opacity: 1;
+		}
+		100% {
+			transform: rotate(var(--angle)) translateX(-500px);
+			opacity: 0;
+		}
+	}
+	--animate-orbit: orbit calc(var(--duration) * 1s) linear infinite;
+	@keyframes orbit {
+		0% {
+			transform: rotate(calc(var(--angle) * 1deg)) translateY(calc(var(--radius) * 1px))
+				rotate(calc(var(--angle) * -1deg));
+		}
+		100% {
+			transform: rotate(calc(var(--angle) * 1deg + 360deg)) translateY(calc(var(--radius) * 1px))
+				rotate(calc((var(--angle) * -1deg) - 360deg));
+		}
+	}
+}
+
+/* Force dark mode */
+:root {
+	--radius: 0.625rem;
+	--background: oklch(0.145 0 0);
+	--foreground: oklch(0.985 0 0);
+	--card: oklch(0.17 0.005 260);
+	--card-foreground: oklch(0.985 0 0);
+	--popover: oklch(0.17 0.005 260);
+	--popover-foreground: oklch(0.985 0 0);
+	--primary: oklch(0.65 0.18 250);
+	--primary-foreground: oklch(0.985 0 0);
+	--secondary: oklch(0.25 0.005 260);
+	--secondary-foreground: oklch(0.985 0 0);
+	--muted: oklch(0.25 0.005 260);
+	--muted-foreground: oklch(0.65 0 0);
+	--accent: oklch(0.25 0.005 260);
+	--accent-foreground: oklch(0.985 0 0);
+	--destructive: oklch(0.55 0.2 27);
+	--border: oklch(0.3 0.005 260);
+	--input: oklch(0.3 0.005 260);
+	--ring: oklch(0.65 0.18 250);
+	--chart-1: oklch(0.65 0.18 250);
+	--chart-2: oklch(0.7 0.15 160);
+	--chart-3: oklch(0.75 0.15 60);
+	--chart-4: oklch(0.7 0.18 310);
+	--chart-5: oklch(0.65 0.15 30);
+}
+
+body {
+	background: var(--background);
+	color: var(--foreground);
+	font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* React Flow Controls — dark mode overrides */
+.react-flow__controls {
+	border-radius: 0.75rem;
+	overflow: hidden;
+}
+.react-flow__controls button {
+	background: hsl(var(--card));
+	border-color: hsl(var(--border));
+	fill: hsl(var(--foreground));
+	color: hsl(var(--foreground));
+}
+.react-flow__controls button:hover {
+	background: hsl(var(--muted));
+}
+.react-flow__controls button svg {
+	fill: hsl(var(--muted-foreground));
+}
+
+/* Edge selection + hover */
+.react-flow__edge {
+	cursor: pointer;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+	stroke: hsl(var(--primary));
+	stroke-width: 2.5;
+}
+.react-flow__edge:hover .react-flow__edge-path {
+	stroke: hsl(var(--primary) / 0.6);
+}
+
+/* Edge delete button */
+.edge-delete-btn button {
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: hsl(var(--destructive));
+	color: white;
+	border: 2px solid hsl(var(--background));
+	font-size: 14px;
+	line-height: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	padding: 0;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.edge-delete-btn button:hover {
+	transform: scale(1.2);
+	background: hsl(var(--destructive) / 0.9);
+}
+
+/* Spotlight grid — border glow on cards */
+[data-spotlight-card] {
+  --spotlight-x: 50%;
+  --spotlight-y: 50%;
+  --spotlight-opacity: 0;
+  --spotlight-color: 59, 130, 246;
+  position: relative;
+}
+[data-spotlight-card]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    600px circle at var(--spotlight-x) var(--spotlight-y),
+    rgba(var(--spotlight-color), calc(var(--spotlight-opacity) * 0.5)) 0%,
+    rgba(var(--spotlight-color), calc(var(--spotlight-opacity) * 0.2)) 25%,
+    transparent 50%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.3s ease;
+}
+[data-spotlight-card]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    400px circle at var(--spotlight-x) var(--spotlight-y),
+    rgba(var(--spotlight-color), calc(var(--spotlight-opacity) * 0.07)) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.3s ease;
+}
