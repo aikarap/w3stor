@@ -188,4 +188,3 @@ export function ExecutionPanel({ onRetry }: ExecutionPanelProps) {
 		</motion.div>
 	);
 }
-
