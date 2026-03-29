@@ -1,0 +1,23 @@
+# Replace with your actual domain
+{$DOMAIN:api.w3stor.xyz} {
+	reverse_proxy api:4000
+
+	# WebSocket support for Socket.io
+	@websocket {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websocket api:4000
+
+	# Security headers
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	# Request size limit (file uploads)
+	request_body {
+		max_size 100MB
+	}
+}
