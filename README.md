@@ -4,7 +4,7 @@ Decentralized storage for AI agents and humans — Filecoin replication, IPFS pi
 
 ## What it does
 
-Upload a file. It gets pinned to IPFS instantly via Pinata, then replicated across multiple Filecoin Storage Providers using the Store/Pull/Commit pattern. Pay per operation with x402 USDC micropayments. Talk to it in natural language or call the API directly.
+Upload a file. It gets pinned to IPFS instantly via Pinata, then replicated across multiple Filecoin Storage Providers, using the Store/Pull/Commit pattern. Pay per operation with x402 USDC micropayments. Talk to it in natural language or call the API directly.
 
 Three protocols: **REST** (direct API), **A2A** (agent-to-agent), **MCP** (AI tool calling).
 
