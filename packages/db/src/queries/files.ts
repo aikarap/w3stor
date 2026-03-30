@@ -97,7 +97,8 @@ export async function listUserFiles(params: {
 
 	const result = await db.execute(sql`
 		SELECT f.*, uf.metadata as user_metadata, uf.filename as user_filename,
-			(SELECT COUNT(*)::int FROM file_sp_status fsp WHERE fsp.cid = f.cid AND fsp.status IN ('stored', 'verified')) AS sp_count,
+			uf.payment_tx_hash, uf.payment_network,
+			(SELECT COUNT(*)::int FROM file_sp_status fsp WHERE fsp.cid = f.cid AND fsp.status IN ('stored', 'verified', 'tx_confirmed')) AS sp_count,
 			COUNT(*) OVER() as total
 		FROM user_files uf
 		INNER JOIN files f ON f.cid = uf.cid
@@ -130,6 +131,7 @@ export async function updateSPStatus(params: {
 	url?: string;
 	verifiedAt?: Date;
 	pieceCid?: string;
+	txHash?: string;
 }) {
 	const db = getDatabase();
 	await db
@@ -141,6 +143,7 @@ export async function updateSPStatus(params: {
 			url: params.url ?? null,
 			pieceCid: params.pieceCid ?? null,
 			verifiedAt: params.verifiedAt ?? null,
+			txHash: params.txHash ?? null,
 		})
 		.onConflictDoUpdate({
 			target: [fileSPStatus.cid, fileSPStatus.spId],
@@ -149,6 +152,7 @@ export async function updateSPStatus(params: {
 				url: sql`COALESCE(EXCLUDED.url, ${fileSPStatus.url})`,
 				pieceCid: sql`COALESCE(EXCLUDED.piece_cid, ${fileSPStatus.pieceCid})`,
 				verifiedAt: sql`COALESCE(EXCLUDED.verified_at, ${fileSPStatus.verifiedAt})`,
+				txHash: sql`COALESCE(EXCLUDED.tx_hash, ${fileSPStatus.txHash})`,
 				updatedAt: new Date(),
 			},
 		});
@@ -172,6 +176,28 @@ export async function getConfirmedSPCount(cid: string): Promise<number> {
 	const result = await db
 		.select({ count: sql<number>`count(*)::int` })
 		.from(fileSPStatus)
-		.where(and(eq(fileSPStatus.cid, cid), sql`${fileSPStatus.status} IN ('stored', 'verified')`));
+		.where(and(eq(fileSPStatus.cid, cid), sql`${fileSPStatus.status} IN ('stored', 'verified', 'tx_confirmed')`));
 	return result[0]?.count ?? 0;
+}
+
+export async function updateUserFilePayment(params: {
+	walletAddress: string;
+	cid: string;
+	paymentTxHash: string;
+	paymentNetwork: string;
+}) {
+	const db = getDatabase();
+	await db
+		.update(userFiles)
+		.set({
+			paymentTxHash: params.paymentTxHash,
+			paymentNetwork: params.paymentNetwork,
+			updatedAt: new Date(),
+		})
+		.where(
+			and(
+				eq(userFiles.walletAddress, params.walletAddress),
+				eq(userFiles.cid, params.cid),
+			),
+		);
 }

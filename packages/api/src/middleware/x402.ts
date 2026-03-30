@@ -4,6 +4,7 @@ import {
 	getResourceServer,
 } from "@w3stor/modules/x402";
 import { config, logger } from "@w3stor/shared";
+import { updateUserFilePayment } from "@w3stor/db";
 import type { Context, Next } from "hono";
 import { createMiddleware } from "hono/factory";
 
@@ -188,6 +189,26 @@ export const x402PaymentMiddleware = createMiddleware(async (c: Context, next: N
 				c.res.headers.set(key, String(value));
 			}
 			logger.info("x402: Payment settled", { transaction: settleResult.transaction });
+
+			// Persist payment tx to user_files if this was an upload
+			const payer = c.get("walletAddress" as never) as string | undefined;
+			const txHash = settleResult.transaction as string | undefined;
+			if (payer && txHash) {
+				try {
+					const clonedRes = c.res.clone();
+					const body = await clonedRes.json() as { cid?: string };
+					if (body.cid) {
+						await updateUserFilePayment({
+							walletAddress: payer,
+							cid: body.cid,
+							paymentTxHash: txHash,
+							paymentNetwork: "eip155:84532",
+						});
+					}
+				} catch {
+					// Non-upload routes or parse failure — skip
+				}
+			}
 		} else {
 			logger.warn("x402: Settlement failed", { reason: settleResult.errorReason });
 		}

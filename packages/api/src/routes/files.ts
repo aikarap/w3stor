@@ -37,6 +37,7 @@ filesRoute.get("/status/:cid", async (c) => {
 	const spStatuses = await getSPStatuses(cid);
 	return c.json({
 		cid: file.cid,
+		pieceCid: file.pieceCid,
 		status: file.status,
 		sizeBytes: file.sizeBytes,
 		contentType: file.contentType,
@@ -46,10 +47,12 @@ filesRoute.get("/status/:cid", async (c) => {
 			spId: sp.spId,
 			status: sp.status,
 			url: sp.url,
+			txHash: sp.txHash,
+			pieceCid: sp.pieceCid,
 			verifiedAt: sp.verifiedAt,
 		})),
 		verifiedSPs: spStatuses.filter(
-			(sp: any) => sp.status === "verified" || sp.status === "stored",
+			(sp: any) => sp.status === "verified" || sp.status === "stored" || sp.status === "tx_confirmed",
 		).length,
 	});
 });

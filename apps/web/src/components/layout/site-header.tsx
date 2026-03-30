@@ -8,24 +8,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const publicLinks = [
+const navLinks = [
 	{ href: "/docs", label: "Docs" },
-	{ href: "/swarm", label: "Live Demo" },
-	{ href: "/platform", label: "Platform" },
-];
-
-const dashboardLinks = [
-	{ href: "/dashboard", label: "Overview" },
-	{ href: "/dashboard/upload", label: "Upload" },
-	{ href: "/dashboard/files", label: "Files" },
-	{ href: "/dashboard/chat", label: "Chat" },
+	{ href: "/dashboard", label: "Dashboard" },
+	{ href: "/agent-activity", label: "Agent Activity" },
 ];
 
 export function SiteHeader() {
 	const pathname = usePathname();
 	const [mobileOpen, setMobileOpen] = useState(false);
-	const isDashboard = pathname.startsWith("/dashboard");
-	const links = isDashboard ? dashboardLinks : publicLinks;
+	const links = navLinks;
 
 	return (
 		<header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -53,13 +45,6 @@ export function SiteHeader() {
 				</nav>
 
 				<div className="flex items-center gap-3">
-					{!isDashboard && (
-						<Link href="/dashboard">
-							<Button variant="outline" size="sm">
-								Dashboard
-							</Button>
-						</Link>
-					)}
 					<a href="https://github.com/aikarap/w3stor" target="_blank" rel="noopener noreferrer">
 						<Button variant="ghost" size="icon" className="h-9 w-9">
 							<svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">

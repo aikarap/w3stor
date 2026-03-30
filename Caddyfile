@@ -18,6 +18,6 @@
 
 	# Request size limit (file uploads)
 	request_body {
-		max_size 100MB
+		max_size 1GB
 	}
 }

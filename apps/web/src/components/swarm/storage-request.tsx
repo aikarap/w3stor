@@ -90,22 +90,22 @@ export function StorageRequest({ artifacts, phase, onStore, storedCids }: Storag
 									)}
 								</div>
 							</div>
-							{/* Image preview */}
+							{/* Image preview — compact thumbnail */}
 							{isImage && (
 								<div className="ml-5 overflow-hidden rounded-md border border-border/30">
 									{/* eslint-disable-next-line @next/next/no-img-element */}
 									<img
 										src={`data:${a.contentType};base64,${a.content}`}
 										alt={a.title}
-										className="max-h-48 w-full object-contain bg-black/20"
+										className="max-h-24 w-full object-contain bg-black/20"
 									/>
 								</div>
 							)}
-							{/* Text preview (first 200 chars) */}
+							{/* Text preview (first 100 chars) */}
 							{!isImage && a.content.length > 0 && (
-								<div className="ml-5 rounded-md border border-border/30 bg-muted/30 px-2 py-1.5 text-[11px] text-muted-foreground font-mono line-clamp-3 whitespace-pre-wrap">
-									{a.content.slice(0, 200)}
-									{a.content.length > 200 ? "..." : ""}
+								<div className="ml-5 rounded-md border border-border/30 bg-muted/30 px-2 py-1 text-[10px] text-muted-foreground font-mono line-clamp-2 whitespace-pre-wrap">
+									{a.content.slice(0, 100)}
+									{a.content.length > 100 ? "..." : ""}
 								</div>
 							)}
 						</div>

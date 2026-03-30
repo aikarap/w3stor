@@ -20,6 +20,7 @@ interface Config {
 		apiSecret: string;
 		jwt: string;
 		gatewayUrl: string;
+		gatewayToken: string;
 	};
 	x402: {
 		evmPrivateKey?: string;
@@ -113,6 +114,7 @@ export const config: Config = {
 		gatewayUrl:
 			getOptionalEnv("PINATA_GATEWAY_URL", "https://gateway.pinata.cloud") ||
 			"https://gateway.pinata.cloud",
+		gatewayToken: getOptionalEnv("PINATA_GATEWAY_TOKEN") ?? "",
 	},
 
 	x402: {
@@ -141,8 +143,8 @@ export const config: Config = {
 		concurrency: parseInt(getOptionalEnv("WORKER_CONCURRENCY", "2") || "2", 10),
 		rateLimitMax: parseInt(getOptionalEnv("WORKER_RATE_LIMIT_MAX", "5") || "5", 10),
 		rateLimitDuration: parseInt(getOptionalEnv("WORKER_RATE_LIMIT_DURATION", "1000") || "1000", 10),
-		maxAttempts: parseInt(getOptionalEnv("WORKER_MAX_ATTEMPTS", "3") || "3", 10),
-		backoffDelay: parseInt(getOptionalEnv("WORKER_BACKOFF_DELAY", "2000") || "2000", 10),
+		maxAttempts: parseInt(getOptionalEnv("WORKER_MAX_ATTEMPTS", "5") || "5", 10),
+		backoffDelay: parseInt(getOptionalEnv("WORKER_BACKOFF_DELAY", "5000") || "5000", 10),
 		shutdownTimeout: parseInt(getOptionalEnv("WORKER_SHUTDOWN_TIMEOUT", "30000") || "30000", 10),
 	},
 

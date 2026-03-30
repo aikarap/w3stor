@@ -143,45 +143,90 @@ bun run dev             # API + workers + frontend via Turbo
 
 ### Production deployment
 
-For production, you need to deploy the API server, workers, and optionally the frontend separately.
+Production runs via Docker Compose on a VPS with 5 containers: API, workers, PostgreSQL, Redis, and Caddy (reverse proxy with auto-TLS).
 
-**API server:**
+#### Prerequisites
 
-```bash
-bun run build
-bun --filter @w3stor/api start
-# Or with a process manager:
-# PORT=4000 bun packages/api/src/index.ts
-```
+- A VPS with Docker and Docker Compose installed
+- A domain pointed to your VPS IP (e.g. `api.w3stor.xyz`)
 
-**Workers:**
+#### First-time setup
 
 ```bash
-bun --filter @w3stor/workers start
-# Or:
-# bun packages/workers/src/index.ts
+# SSH into the VPS
+ssh root@<your-vps-ip>
+
+# Create the env file
+cp /opt/w3stor/.env.prod.example /opt/w3stor/.env.prod
+# Edit with your credentials — see .env.prod.example for all variables
+nano /opt/w3stor/.env.prod
 ```
 
-**Frontend:**
+#### Deploy
+
+The `deploy.sh` script syncs the project and restarts all services:
 
 ```bash
-bun --filter @w3stor/web build
-bun --filter @w3stor/web start
-# Or deploy to Vercel: connect the repo and set root directory to apps/web
+./deploy.sh root@<your-vps-ip>
 ```
+
+This does:
+1. Rsyncs the repo to `/opt/w3stor` on the remote (excludes node_modules, .git, .env, apps/web)
+2. Builds Docker images on the remote
+3. Runs database migrations
+4. Starts/restarts all services
+
+#### Manual operations on the VPS
+
+```bash
+ssh root@<your-vps-ip>
+cd /opt/w3stor
+
+# Load env vars (required for all docker-compose commands)
+set -a && source .env.prod && set +a
+
+# Service status
+docker compose -f docker-compose.prod.yml ps
+
+# View logs
+docker compose -f docker-compose.prod.yml logs -f api
+docker compose -f docker-compose.prod.yml logs -f workers
+
+# Restart a single service
+docker compose -f docker-compose.prod.yml restart caddy
+
+# Run migrations manually
+docker compose -f docker-compose.prod.yml --profile migrate run --rm migrate
+```
+
+#### Production services
+
+| Service | Image | Ports | Notes |
+|---------|-------|-------|-------|
+| `api` | Custom (Dockerfile) | 4000 | Hono API server |
+| `workers` | Custom (Dockerfile) | — | BullMQ background jobs |
+| `postgres` | postgres:16-alpine | 5432 (internal) | Health-checked |
+| `redis` | redis:7-alpine | 6379 (internal) | 256MB maxmemory, LRU eviction |
+| `caddy` | caddy:2-alpine | 80, 443 | Auto-TLS via Let's Encrypt, 1GB upload limit |
+
+#### Caddy configuration
+
+Caddy handles TLS certificate provisioning and reverse proxies to the API. Config is at `Caddyfile`:
+
+- Auto HTTPS with Let's Encrypt
+- WebSocket support for Socket.io
+- Max upload size: 1GB
+- Security headers (nosniff, DENY framing, strict referrer)
+
+#### Frontend
+
+The frontend (`apps/web`) is not included in the Docker production setup. Deploy it separately to Vercel or any static hosting provider. Set `NEXT_PUBLIC_API_URL` to your production API URL.
 
 ### Environment
 
-All services share the same `.env` file. In production, set these via your platform's secret management:
+Production uses `.env.prod` on the VPS. Database and Redis URLs are injected by docker-compose from `POSTGRES_*` variables — do not set `DATABASE_URL` or `REDIS_URL` manually.
 
-- `DATABASE_URL` — PostgreSQL connection string (use connection pooling in production)
-- `REDIS_URL` — Redis connection string
-- `PINATA_JWT` — Pinata API access
-- `X402_EVM_PRIVATE_KEY` — x402 payment signing key
-- `FILECOIN_PRIVATE_KEY` — Filecoin on-chain operation key
-- `AI_GATEWAY_API_KEY` — LLM provider key
-
-See `.env.example` for the full list.
+See `.env.prod.example` for all required variables.
 
 ## Worker scaling
 

@@ -186,18 +186,20 @@ Hono API Server (@w3stor/api)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `REDIS_URL` | Yes | Redis connection string |
+| `DATABASE_URL` | Yes | PostgreSQL connection string (dev only — injected by docker-compose in prod) |
+| `REDIS_URL` | Yes | Redis connection string (dev only — injected by docker-compose in prod) |
 | `PINATA_API_KEY` | Yes | Pinata API key |
 | `PINATA_API_SECRET` | Yes | Pinata API secret |
 | `PINATA_JWT` | Yes | Pinata JWT |
+| `PINATA_GATEWAY_URL` | No | Pinata gateway URL (default: `https://gateway.pinata.cloud`) |
 | `X402_EVM_PRIVATE_KEY` | Yes | EVM key for x402 payment facilitation |
 | `X402_EVM_PAY_TO` | Yes | Wallet to receive payments |
 | `FILECOIN_PRIVATE_KEY` | Yes | Key for Filecoin on-chain ops |
-| `AI_GATEWAY_API_KEY` | Yes | AI gateway key (OpenRouter, etc.) |
+| `FILECOIN_RPC_URL` | No | Filecoin RPC (default: calibration testnet, use `https://api.node.glif.io/rpc/v1` for mainnet) |
 | `AI_DEFAULT_MODEL` | No | Default LLM model (default: `openai/gpt-4o-mini`) |
 | `PORT` | No | API port (default: 4000) |
 | `CORS_ORIGIN` | No | CORS origin (default: `*`) |
+| `DOMAIN` | Prod | Domain for Caddy TLS (default: `api.w3stor.xyz`) |
 
 ## Scripts
 

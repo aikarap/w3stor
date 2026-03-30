@@ -19,6 +19,8 @@ const port = parseInt(process.env.PORT ?? "4000", 10);
 const server = Bun.serve({
 	port,
 	fetch: app.fetch,
+	maxRequestBodySize: 1024 * 1024 * 1024, // 1 GiB
+	idleTimeout: 255, // Max value (seconds) — keeps SSE connections alive
 });
 
 logger.info(`@w3stor/api listening on http://localhost:${server.port}`);

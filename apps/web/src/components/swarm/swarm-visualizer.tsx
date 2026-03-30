@@ -370,7 +370,7 @@ export function SwarmVisualizer() {
 				{/* Build your own workflow CTA */}
 				{started && (
 					<a
-						href="/swarm"
+						href="/dashboard"
 						className="flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 px-4 py-3 text-sm font-medium text-cyan-400 backdrop-blur-sm transition-all hover:from-cyan-500/20 hover:to-blue-500/20 hover:border-cyan-500/50"
 					>
 						<svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
