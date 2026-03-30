@@ -7,6 +7,11 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 		className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
 	},
 	uploading: { label: "Uploading", className: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+	pulling: { label: "Pulling", className: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" },
+	piece_parked: { label: "Parked", className: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" },
+	committing: { label: "Committing", className: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+	tx_submitted: { label: "TX Submitted", className: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+	tx_confirmed: { label: "TX Confirmed", className: "bg-lime-500/10 text-lime-400 border-lime-500/20" },
 	stored: { label: "Stored", className: "bg-green-500/10 text-green-400 border-green-500/20" },
 	fully_replicated: {
 		label: "Replicated",

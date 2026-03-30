@@ -152,6 +152,10 @@ export interface AllProvidersResult {
 	totalProviders: number;
 }
 
+export type OnProviderCommit = (result: CarUploadResult & { configId: string }) => void | Promise<void>;
+export type OnProviderFail = (failure: { configId: string; error: string }) => void | Promise<void>;
+export type OnProviderProgress = (update: { configId: string; name: string; status: string; txHash?: string }) => void | Promise<void>;
+
 /**
  * Upload a file to all configured storage providers using the store/pull/commit pattern:
  *
@@ -162,7 +166,12 @@ export interface AllProvidersResult {
 export async function uploadCarToAllProviders(
 	client: FilecoinClient,
 	fileData: Uint8Array,
-	options: Omit<CarUploadOptions, "datasetId" | "clientDataSetId" | "providerId">,
+	options: Omit<CarUploadOptions, "datasetId" | "clientDataSetId" | "providerId"> & {
+		onProviderCommit?: OnProviderCommit;
+		onProviderFail?: OnProviderFail;
+		onProviderProgress?: OnProviderProgress;
+		onPieceCidComputed?: (pieceCid: string) => void | Promise<void>;
+	},
 ): Promise<AllProvidersResult> {
 	const filename = options.filename || "file";
 	const sizeBytes = options.sizeBytes || fileData.length;
@@ -186,6 +195,8 @@ export async function uploadCarToAllProviders(
 
 		logger.info("PieceCID computed", { pieceCid: pieceCid.toString() });
 
+		await options.onPieceCidComputed?.(pieceCid.toString());
+
 		const car: PreBuiltCar = {
 			carFilePath: carFile.carFilePath,
 			rootCid: carFile.rootCid,
@@ -202,10 +213,15 @@ export async function uploadCarToAllProviders(
 		};
 
 		// --- Phase 1: Store piece on primary SP ---
+		await options.onProviderProgress?.({ configId: primaryProvider.id, name: primaryProvider.name, status: "uploading" });
 		await storePieceToPrimary(car, primaryProvider, options.onProgress);
+		await options.onProviderProgress?.({ configId: primaryProvider.id, name: primaryProvider.name, status: "piece_parked" });
 
 		// --- Phase 2: Pull piece to secondary SPs ---
 		if (secondaryProviders.length > 0) {
+			for (const sp of secondaryProviders) {
+				await options.onProviderProgress?.({ configId: sp.id, name: sp.name, status: "pulling" });
+			}
 			const pullResults = await pullPieceToSecondaries(
 				client,
 				car,
@@ -260,9 +276,36 @@ export async function uploadCarToAllProviders(
 		});
 
 		const commitResults = await Promise.allSettled(
-			spConfig.providers.map((providerConfig) =>
-				commitPieceToProvider(client, car, providerConfig, metadata, options.onProgress),
-			),
+			spConfig.providers.map(async (providerConfig) => {
+				await options.onProviderProgress?.({ configId: providerConfig.id, name: providerConfig.name, status: "committing" });
+
+				// addPieces submits the tx — we get txHash back before waiting for confirmation
+				const addResult = await addPieces(client, {
+					serviceURL: providerConfig.url,
+					dataSetId: BigInt(providerConfig.datasetId),
+					clientDataSetId: BigInt(providerConfig.clientDataSetId),
+					pieces: [{ pieceCid: car.pieceCid, metadata }],
+				});
+
+				// Fire tx_submitted with txHash immediately
+				await options.onProviderProgress?.({ configId: providerConfig.id, name: providerConfig.name, status: "tx_submitted", txHash: addResult.txHash });
+
+				// Wait for on-chain confirmation — if this times out, the tx is still on-chain
+				try {
+					await SP.waitForAddPieces({ statusUrl: addResult.statusUrl });
+					await options.onProviderProgress?.({ configId: providerConfig.id, name: providerConfig.name, status: "tx_confirmed", txHash: addResult.txHash });
+				} catch (waitError) {
+					// TX was submitted but confirmation timed out — still count as success
+					// since the tx exists on-chain. The provider progress stays at tx_submitted.
+					logger.warn("waitForAddPieces timed out but tx was submitted", {
+						provider: providerConfig.name,
+						txHash: addResult.txHash,
+						error: waitError instanceof Error ? waitError.message : String(waitError),
+					});
+				}
+
+				return addResult;
+			}),
 		);
 
 		// Check IPNI advertisement for our root CID
@@ -280,11 +323,12 @@ export async function uploadCarToAllProviders(
 		const succeeded: CarUploadResult[] = [];
 		const failed: Array<{ configId: string; error: string }> = [];
 
-		commitResults.forEach((result, index) => {
+		for (let index = 0; index < commitResults.length; index++) {
+			const result = commitResults[index];
 			const providerConfig = spConfig.providers[index];
 			const configId = providerConfig.id;
 			if (result.status === "fulfilled") {
-				succeeded.push({
+				const uploadResult: CarUploadResult = {
 					pieceCid: car.pieceCid.toString(),
 					ipfsRootCid: car.rootCid,
 					carSize: car.carSize,
@@ -297,13 +341,17 @@ export async function uploadCarToAllProviders(
 					},
 					txHash: result.value.txHash,
 					ipniAdvertised,
-				});
+				};
+				succeeded.push(uploadResult);
+				await options.onProviderCommit?.({ ...uploadResult, configId });
 			} else {
 				const errorMsg =
 					result.reason instanceof Error ? result.reason.message : String(result.reason);
-				failed.push({ configId, error: errorMsg });
+				const failure = { configId, error: errorMsg };
+				failed.push(failure);
+				await options.onProviderFail?.(failure);
 			}
-		});
+		}
 
 		logger.info("All providers upload completed", {
 			succeeded: succeeded.length,

@@ -15,13 +15,13 @@ export function SiteFooter() {
 								</Link>
 							</li>
 							<li>
-								<Link href="/swarm" className="hover:text-foreground transition-colors">
-									Live Demo
+								<Link href="/dashboard" className="hover:text-foreground transition-colors">
+									Dashboard
 								</Link>
 							</li>
 							<li>
-								<Link href="/platform" className="hover:text-foreground transition-colors">
-									Platform Status
+								<Link href="/agent-activity" className="hover:text-foreground transition-colors">
+									Agent Activity
 								</Link>
 							</li>
 						</ul>

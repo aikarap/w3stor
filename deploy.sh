@@ -25,17 +25,21 @@ ssh "$HOST" bash -s <<'REMOTE'
   # Load env vars for docker-compose interpolation
   set -a && source .env.prod && set +a
 
-  echo "--- Pulling images & building ---"
-  docker compose -f docker-compose.prod.yml build
+  echo "--- Building images (no cache for app services) ---"
+  docker compose -f docker-compose.prod.yml build --no-cache api workers
 
   echo "--- Running migrations ---"
   docker compose -f docker-compose.prod.yml --profile migrate run --rm migrate
 
   echo "--- Starting services ---"
-  docker compose -f docker-compose.prod.yml up -d --remove-orphans
+  docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
+
+  echo "--- Waiting for API to start ---"
+  sleep 3
 
   echo "--- Status ---"
   docker compose -f docker-compose.prod.yml ps
+  docker compose -f docker-compose.prod.yml logs --tail=3 api
 
   echo "==> Deploy complete!"
 REMOTE

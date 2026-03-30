@@ -22,7 +22,7 @@ export async function listAllFiles(params: { page?: number; limit?: number }) {
 		FROM files f
 		LEFT JOIN (
 			SELECT cid, COUNT(*) AS cnt FROM file_sp_status
-			WHERE status IN ('stored', 'verified')
+			WHERE status IN ('stored', 'verified', 'tx_confirmed')
 			GROUP BY cid
 		) sp ON sp.cid = f.cid
 		LEFT JOIN user_files uf ON uf.cid = f.cid

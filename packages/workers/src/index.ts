@@ -8,6 +8,7 @@ import {
 } from "@w3stor/db";
 import {
 	getClientFromEnv,
+	loadSPProvidersConfig,
 	uploadCarToAllProviders,
 	verifyFilecoinFile,
 } from "@w3stor/modules/filecoin";
@@ -38,6 +39,33 @@ async function processFilecoinUpload(job: Job<FilecoinUploadJob>): Promise<void>
 
 	await updateFileStatus(cid, "uploading");
 
+	// Create pending SP rows immediately so the UI can show assigned providers
+	const redis = getWorkerRedisConnection();
+	const spConfig = loadSPProvidersConfig();
+	for (const provider of spConfig.providers) {
+		await updateSPStatus({
+			cid,
+			spId: provider.name,
+			status: "pending",
+			url: provider.url,
+		});
+	}
+
+	// Publish initial status so frontend sees providers right away
+	await redis.publish(
+		`file:${cid}:status`,
+		JSON.stringify({
+			cid,
+			status: "uploading",
+			confirmedSPs: 0,
+			totalProviders: spConfig.providers.length,
+			providers: spConfig.providers.map((p) => ({
+				spId: p.name,
+				status: "pending",
+			})),
+		}),
+	);
+
 	try {
 		const fileData = await fetchFromIPFS(pinataCid);
 
@@ -49,6 +77,8 @@ async function processFilecoinUpload(job: Job<FilecoinUploadJob>): Promise<void>
 		});
 
 		const filecoinClient = getClientFromEnv();
+		let confirmedSPCount = 0;
+		const { replicationMinProviders, replicationTotalProviders } = config.filecoin;
 
 		const { succeeded, failed, totalProviders } = await uploadCarToAllProviders(
 			filecoinClient,
@@ -57,98 +87,136 @@ async function processFilecoinUpload(job: Job<FilecoinUploadJob>): Promise<void>
 				filename: filename || `file-${cid}`,
 				sizeBytes,
 				waitForIPNI: true,
+				// Set pieceCid on the file as soon as it's computed (before any SP upload)
+				async onPieceCidComputed(pieceCid) {
+					await updateFilePieceCid(cid, pieceCid);
+					logger.info("PieceCID set early", { jobId: job.id, cid, pieceCid });
+					await redis.publish(
+						`file:${cid}:status`,
+						JSON.stringify({ cid, status: "uploading", event: "piece-cid-computed", pieceCid }),
+					);
+				},
 				onProgress: (stage, data) => {
 					logger.info("Upload progress", { jobId: job.id, cid, stage, data });
+				},
+				// Called at each phase transition per provider — update DB + Redis in real-time
+				async onProviderProgress({ configId, name, status: spStatus, txHash }) {
+					await updateSPStatus({
+						cid,
+						spId: name,
+						status: spStatus,
+						txHash,
+					});
+
+					logger.info("SP progress", { jobId: job.id, cid, sp: name, status: spStatus, txHash });
+
+					await redis.publish(
+						`file:${cid}:status`,
+						JSON.stringify({
+							cid,
+							status: "uploading",
+							event: "provider-progress",
+							provider: { spId: name, status: spStatus, txHash },
+						}),
+					);
+				},
+				// Called for each SP as it commits on-chain
+				async onProviderCommit(result) {
+					const sp = spConfig.providers.find((p) => p.id === result.configId);
+					const spName = sp?.name ?? result.configId;
+					confirmedSPCount++;
+
+					await updateSPStatus({
+						cid,
+						spId: spName,
+						status: "stored",
+						url: result.provider.endpoint,
+						verifiedAt: new Date(),
+						pieceCid: result.pieceCid,
+						txHash: result.txHash,
+					});
+
+					// Update file status incrementally as SPs confirm
+					const fileStatus =
+						confirmedSPCount >= replicationTotalProviders
+							? "fully_replicated"
+							: confirmedSPCount >= replicationMinProviders
+								? "stored"
+								: "uploading";
+					await updateFileStatus(cid, fileStatus);
+
+					logger.info("SP stored", {
+						jobId: job.id,
+						cid,
+						sp: spName,
+						confirmedSPs: confirmedSPCount,
+						fileStatus,
+						txHash: result.txHash,
+					});
+
+					await redis.publish(
+						`file:${cid}:status`,
+						JSON.stringify(
+							{
+								cid,
+								status: fileStatus,
+								event: "provider-committed",
+								confirmedSPs: confirmedSPCount,
+								totalProviders: spConfig.providers.length,
+								provider: { spId: spName, status: "stored", txHash: result.txHash, pieceCid: result.pieceCid },
+							},
+							(_, v) => (typeof v === "bigint" ? v.toString() : v),
+						),
+					);
+				},
+				async onProviderFail(failure) {
+					const sp = spConfig.providers.find((p) => p.id === failure.configId);
+					const spName = sp?.name ?? failure.configId;
+
+					await updateSPStatus({ cid, spId: spName, status: "failed" });
+
+					await redis.publish(
+						`file:${cid}:status`,
+						JSON.stringify({
+							cid,
+							status: "uploading",
+							event: "provider-failed",
+							provider: { spId: spName, status: "failed", error: failure.error },
+						}),
+					);
 				},
 			},
 		);
 
-		// Update piece_cid on the file from the first successful upload
-		if (succeeded.length > 0 && succeeded[0].pieceCid) {
-			await updateFilePieceCid(cid, succeeded[0].pieceCid);
-		}
-
-		for (const result of succeeded) {
-			const spId = result.configId || `sp-${result.provider.id}`;
-
-			await updateSPStatus({
-				cid,
-				spId,
-				status: "stored",
-				url: result.provider.endpoint,
-				verifiedAt: new Date(),
-				pieceCid: result.pieceCid,
-			});
-
-			logger.info("SP upload completed", {
-				jobId: job.id,
-				cid,
-				spId,
-				pieceCid: result.pieceCid,
-				providerId: result.provider.id,
-				ipfsRootCid: result.ipfsRootCid,
-			});
-		}
-
-		for (const failure of failed) {
-			await updateSPStatus({ cid, spId: failure.configId, status: "failed" });
-		}
-
-		const confirmedSPs = succeeded.length;
-		const { replicationMinProviders, replicationTotalProviders } = config.filecoin;
-
-		if (confirmedSPs >= replicationMinProviders) {
-			await updateFileStatus(
-				cid,
-				confirmedSPs >= replicationTotalProviders ? "fully_replicated" : "stored",
-			);
-
-			const file = await findFileByCID(cid);
-			if (file?.pinataPinId) {
-				await enqueuePinataUnpin({
-					cid,
-					pinataPinId: file.pinataPinId,
-				});
-
-				logger.info("Pinata unpin job queued after SP confirmations met threshold", {
-					cid,
-					confirmedSPs,
-					requiredMin: replicationMinProviders,
-				});
-			}
-		} else if (confirmedSPs >= 1) {
-			logger.warn("Only partial SP confirmation - keeping Pinata pin active", {
-				cid,
-				confirmedSPs,
-				requiredMin: replicationMinProviders,
-				failedProviders: failed.map((f) => f.configId),
-			});
-			await updateFileStatus(cid, "stored");
-		} else {
-			logger.error("All SP uploads failed", {
-				jobId: job.id,
-				cid,
-				failures: failed,
-			});
+		// File status was already updated incrementally in onProviderCommit.
+		// Handle edge case: all SPs failed (confirmedSPCount is still 0).
+		if (confirmedSPCount === 0) {
 			await updateFileStatus(cid, "failed");
 			throw new Error(`All ${totalProviders} SP uploads failed`);
 		}
 
-		// Publish completion notification via Redis pub/sub
+		// Unpin from Pinata once we have enough confirmations
+		if (confirmedSPCount >= replicationMinProviders) {
+			const file = await findFileByCID(cid);
+			if (file?.pinataPinId) {
+				await enqueuePinataUnpin({ cid, pinataPinId: file.pinataPinId });
+				logger.info("Pinata unpin job queued", { cid, confirmedSPs: confirmedSPCount });
+			}
+		}
+
+		// Publish final completion notification via Redis pub/sub
+		const finalStatus =
+			confirmedSPCount >= replicationTotalProviders ? "fully_replicated"
+				: confirmedSPCount >= replicationMinProviders ? "stored"
+				: "partial";
 		try {
-			const redis = getWorkerRedisConnection();
 			await redis.publish(
 				`file:${cid}:status`,
 				JSON.stringify(
 					{
 						cid,
-						status:
-							confirmedSPs >= replicationTotalProviders
-								? "fully_replicated"
-								: confirmedSPs >= replicationMinProviders
-									? "stored"
-									: "partial",
-						confirmedSPs,
+						status: finalStatus,
+						confirmedSPs: confirmedSPCount,
 						totalProviders,
 						failedProviders: failed.map((f) => f.configId),
 					},
@@ -165,9 +233,9 @@ async function processFilecoinUpload(job: Job<FilecoinUploadJob>): Promise<void>
 		logger.info("Filecoin upload completed", {
 			jobId: job.id,
 			cid,
-			confirmedSPs,
+			confirmedSPs: confirmedSPCount,
 			failedSPs: failed.length,
-			providers: succeeded.map((r) => r.configId || r.provider.id),
+			finalStatus,
 		});
 	} catch (error) {
 		logger.error("Filecoin upload failed", {

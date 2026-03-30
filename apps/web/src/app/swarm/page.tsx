@@ -8,8 +8,6 @@ const ReactFlowProvider = dynamic(
 );
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
-import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
 import { StorageRequest } from "@/components/swarm/storage-request";
 import { ExecutionPanel } from "@/components/workflow/execution-panel";
 import { NodeConfigModal } from "@/components/workflow/node-config-sheet";
@@ -248,9 +246,8 @@ export default function SwarmPage() {
 	);
 
 	return (
-		<div className="flex flex-col">
-			<SiteHeader />
-			<main className="flex flex-1 flex-col max min-h-screen px-4 pb-4">
+		<div className="flex flex-col min-h-[600px]">
+			<main className="flex flex-1 flex-col px-0 pb-4">
 				{/* Toolbar */}
 				<div className="mb-3">
 					<WorkflowToolbar onExecute={handleExecute} />
@@ -266,7 +263,7 @@ export default function SwarmPage() {
 
 					{/* Execution panel + Storage request (slides in) */}
 					{showPanel && (
-						<div className="w-80 shrink-0 flex flex-col gap-4">
+						<div className="w-80 shrink-0 flex flex-col gap-4 max-h-[calc(100vh-220px)] overflow-y-auto">
 							<ExecutionPanel onRetry={handleExecute} />
 							{storagePhase !== "idle" && storageArtifacts.length > 0 && (
 								<StorageRequest
@@ -281,7 +278,6 @@ export default function SwarmPage() {
 				</div>
 			</main>
 			<NodeConfigModal />
-			<SiteFooter />
 		</div>
 	);
 }

@@ -92,13 +92,20 @@ export async function unpinFile(cid: string): Promise<void> {
 
 export async function fetchFromIPFS(cid: string): Promise<Uint8Array> {
 	const gatewayUrl = config.pinata.gatewayUrl.replace(/\/$/, "");
+	const gatewayToken = config.pinata.gatewayToken;
+
+	// Dedicated gateways use ?pinataGatewayToken=, public gateway uses Bearer JWT
+	const url = gatewayToken
+		? `${gatewayUrl}/ipfs/${cid}?pinataGatewayToken=${gatewayToken}`
+		: `${gatewayUrl}/ipfs/${cid}`;
+
+	const headers: Record<string, string> = {};
+	if (!gatewayToken) {
+		headers.Authorization = `Bearer ${config.pinata.jwt}`;
+	}
 
 	try {
-		const response = await fetch(`${gatewayUrl}/ipfs/${cid}`, {
-			headers: {
-				Authorization: `Bearer ${config.pinata.jwt}`,
-			},
-		});
+		const response = await fetch(url, { headers });
 
 		if (!response.ok) {
 			const errorText = await response.text();

@@ -121,7 +121,7 @@ export function ExecutionPanel({ onRetry }: ExecutionPanelProps) {
 		<motion.div
 			initial={{ opacity: 0, x: 20 }}
 			animate={{ opacity: 1, x: 0 }}
-			className="flex h-full flex-col overflow-hidden rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm"
+			className="flex max-h-[50vh] flex-col overflow-hidden rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm"
 		>
 			<div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
 				<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

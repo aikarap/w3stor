@@ -11,6 +11,9 @@ interface FileItem {
 	size: number;
 	status: string;
 	sp_count?: number;
+	piece_cid?: string;
+	payment_tx_hash?: string;
+	payment_network?: string;
 	created_at: string;
 	tags?: string;
 	description?: string;
@@ -47,7 +50,32 @@ export function useFileStatus(cid: string | null) {
 			// Stop polling once fully replicated or failed
 			const status = query.state.data?.status;
 			if (status === "fully_replicated" || status === "failed") return false;
-			return 10_000;
+			return 30_000; // Fallback only — SSE handles real-time updates
+		},
+	});
+}
+
+export function useFileProviders(cid: string | null) {
+	return useQuery({
+		queryKey: queryKeys.files.detail(cid ?? ""),
+		queryFn: () => apiFetch<{
+			cid: string;
+			pieceCid: string | null;
+			status: string;
+			providers: Array<{
+				spId: string;
+				status: string;
+				url: string | null;
+				txHash: string | null;
+				pieceCid: string | null;
+				verifiedAt: string | null;
+			}>;
+		}>(`/status/${cid}`),
+		enabled: !!cid,
+		refetchInterval: (query) => {
+			const status = query.state.data?.status;
+			if (status === "fully_replicated" || status === "failed") return false;
+			return 5_000;
 		},
 	});
 }

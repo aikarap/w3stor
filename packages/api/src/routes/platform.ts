@@ -11,8 +11,10 @@ platformRoute.get("/platform/stats", async (c) => {
 
 /** GET /platform/activity — recent files for activity feed */
 platformRoute.get("/platform/activity", async (c) => {
-	const { files } = await listAllFiles({ page: 1, limit: 10 });
-	return c.json({ activity: files });
+	const page = Math.max(1, Number(c.req.query("page") ?? "1"));
+	const limit = Math.min(100, Math.max(1, Number(c.req.query("limit") ?? "50")));
+	const { files, total, hasMore } = await listAllFiles({ page, limit });
+	return c.json({ activity: files, total, page, limit, hasMore });
 });
 
 /** GET /platform/metrics */

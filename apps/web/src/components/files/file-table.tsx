@@ -12,6 +12,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { ExpandableFileRow } from "./expandable-file-row";
 
 interface FileRow {
 	cid: string;
@@ -21,8 +22,16 @@ interface FileRow {
 	size?: number;
 	status: string;
 	sp_count?: number;
+	piece_cid?: string;
+	payment_tx_hash?: string;
+	payment_network?: string;
 	created_at?: string;
 	createdAt?: string;
+}
+
+interface FileTableProps {
+	files: FileRow[];
+	variant?: "user" | "agent-activity";
 }
 
 type SortKey = "name" | "size" | "status" | "sp_count" | "date";
@@ -48,6 +57,31 @@ function getDate(f: FileRow): string {
 	return f.created_at ?? f.createdAt ?? "";
 }
 
+function getPdpExplorerUrl(pieceCid: string): string {
+	return `https://pdp.vxb.ai/calibration/piece/${pieceCid}`;
+}
+
+function getIpfsUrl(cid: string): string {
+	return `https://ipfs.io/ipfs/${cid}`;
+}
+
+function getPaymentExplorerUrl(txHash: string, network?: string): string {
+	switch (network) {
+		case "eip155:84532":
+		default:
+			return `https://sepolia.basescan.org/tx/${txHash}`;
+	}
+}
+
+function getNetworkLabel(network?: string): string {
+	switch (network) {
+		case "eip155:84532":
+			return "Base Sepolia";
+		default:
+			return network ?? "Unknown";
+	}
+}
+
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 	if (!active) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
 	return dir === "asc" ? (
@@ -57,7 +91,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 	);
 }
 
-export function FileTable({ files }: { files: FileRow[] }) {
+export function FileTable({ files, variant = "user" }: FileTableProps) {
 	const [sortKey, setSortKey] = useState<SortKey>("date");
 	const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -101,11 +135,16 @@ export function FileTable({ files }: { files: FileRow[] }) {
 			<Table>
 				<TableHeader>
 					<TableRow>
-						<TableHead>
-							<button type="button" onClick={() => toggleSort("name")} className="flex items-center hover:text-foreground transition-colors">
-								Name <SortIcon active={sortKey === "name"} dir={sortDir} />
-							</button>
-						</TableHead>
+						<TableHead className="w-8" />
+						{variant === "user" ? (
+							<TableHead>
+								<button type="button" onClick={() => toggleSort("name")} className="flex items-center hover:text-foreground transition-colors">
+									Name <SortIcon active={sortKey === "name"} dir={sortDir} />
+								</button>
+							</TableHead>
+						) : (
+							<TableHead>PieceCID</TableHead>
+						)}
 						<TableHead>CID</TableHead>
 						<TableHead>
 							<button type="button" onClick={() => toggleSort("size")} className="flex items-center hover:text-foreground transition-colors">
@@ -127,17 +166,34 @@ export function FileTable({ files }: { files: FileRow[] }) {
 								Date <SortIcon active={sortKey === "date"} dir={sortDir} />
 							</button>
 						</TableHead>
-						<TableHead />
+						<TableHead>Links</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{sorted.map((file) => (
-						<TableRow key={file.cid}>
-							<TableCell className="font-medium">{getName(file)}</TableCell>
+						<ExpandableFileRow key={file.cid} cid={file.cid} status={file.status}>
+							{variant === "user" ? (
+								<TableCell className="font-medium">{getName(file)}</TableCell>
+							) : (
+								<TableCell>
+									{file.piece_cid ? (
+										<button
+											type="button"
+											onClick={(e) => { e.stopPropagation(); copyCid(file.piece_cid!); }}
+											className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+										>
+											{file.piece_cid.slice(0, 12)}...
+											<Copy className="h-3 w-3" />
+										</button>
+									) : (
+										<span className="text-muted-foreground">—</span>
+									)}
+								</TableCell>
+							)}
 							<TableCell>
 								<button
 									type="button"
-									onClick={() => copyCid(file.cid)}
+									onClick={(e) => { e.stopPropagation(); copyCid(file.cid); }}
 									className="flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
 								>
 									{file.cid.slice(0, 12)}...
@@ -155,21 +211,48 @@ export function FileTable({ files }: { files: FileRow[] }) {
 								{new Date(getDate(file)).toLocaleDateString()}
 							</TableCell>
 							<TableCell>
-								<a
-									href={`https://ipfs.io/ipfs/${file.cid}`}
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									<Button variant="ghost" size="sm">
-										<Download className="h-4 w-4" />
-									</Button>
-								</a>
+								<div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+									<a
+										href={getIpfsUrl(file.cid)}
+										target="_blank"
+										rel="noopener noreferrer"
+										title="View on IPFS"
+									>
+										<Button variant="ghost" size="sm">
+											<Download className="h-4 w-4" />
+										</Button>
+									</a>
+									{file.piece_cid && (
+										<a
+											href={getPdpExplorerUrl(file.piece_cid)}
+											target="_blank"
+											rel="noopener noreferrer"
+											title="PDP Explorer"
+										>
+											<Button variant="ghost" size="sm" className="text-xs font-mono">
+												PDP
+											</Button>
+										</a>
+									)}
+									{file.payment_tx_hash && (
+										<a
+											href={getPaymentExplorerUrl(file.payment_tx_hash, file.payment_network)}
+											target="_blank"
+											rel="noopener noreferrer"
+											title={`Payment on ${getNetworkLabel(file.payment_network)}`}
+										>
+											<Button variant="ghost" size="sm" className="text-xs font-mono">
+												Pay
+											</Button>
+										</a>
+									)}
+								</div>
 							</TableCell>
-						</TableRow>
+						</ExpandableFileRow>
 					))}
 					{files.length === 0 && (
 						<TableRow>
-							<TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+							<TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
 								No files uploaded yet
 							</TableCell>
 						</TableRow>

@@ -24,8 +24,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./package.json
 COPY --from=deps /app/bun.lock ./bun.lock
 
-# Copy full source (Bun runs TypeScript directly — no build step needed)
+# Copy full source
 COPY packages/ packages/
+
+# Build SDK (exports point to dist/ — needed by API and workers)
+RUN bun --filter @w3stor/sdk build
 
 # Default to API — override with docker-compose command
 ENV PORT=4000

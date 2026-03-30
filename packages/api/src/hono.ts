@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { x402PaymentMiddleware } from "./middleware/x402";
 import { a2aRoutes } from "./routes/a2a";
+import { eventsRoute } from "./routes/events";
 import { attestRoute } from "./routes/attest";
 import { conversationsRoute } from "./routes/conversations";
 import { filesRoute } from "./routes/files";
@@ -41,5 +42,8 @@ app.route("/", attestRoute);
 
 // A2A protocol endpoints
 app.route("/", a2aRoutes);
+
+// SSE real-time events
+app.route("/", eventsRoute);
 
 export { app };
