@@ -11,10 +11,22 @@
 #         - 'packages/cli/**'
 #
 # For now, trigger it manually from the Actions tab using workflow_dispatch.
+#
+# Prerequisites for publishing:
+#   1. Add NPM_TOKEN secret: GitHub repo → Settings → Secrets → Actions → New repository secret
+#      (Generate at npmjs.com → Profile → Access Tokens → "Automation" type)
+#   2. Bump version in packages/sdk/package.json or packages/cli/package.json before pushing
+#      (npm rejects duplicate versions — publish will fail if version already exists)
 
 name: Publish Packages
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/sdk/**'
+      - 'packages/cli/**'
+
   workflow_dispatch:
     inputs:
       package:
