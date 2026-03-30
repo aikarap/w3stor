@@ -13,13 +13,21 @@
 			"types": "./src/ai.ts",
 			"import": "./dist/ai.js"
 		},
+		"./ai-sdk": {
+			"types": "./src/integrations/ai-sdk.ts",
+			"import": "./dist/integrations/ai-sdk.js"
+		},
 		"./a2a": {
 			"types": "./src/a2a.ts",
 			"import": "./dist/a2a.js"
 		},
+		"./elizaos": {
+			"types": "./src/integrations/elizaos.ts",
+			"import": "./dist/integrations/elizaos.js"
+		},
 		"./mastra": {
-			"types": "./src/mastra.ts",
-			"import": "./dist/mastra.js"
+			"types": "./src/integrations/mastra.ts",
+			"import": "./dist/integrations/mastra.js"
 		}
 	},
 	"files": [
@@ -32,19 +40,22 @@
 		"access": "public"
 	},
 	"scripts": {
-		"build": "bun build src/index.ts src/ai.ts src/a2a.ts src/mastra.ts --outdir dist --target node --format esm --external ai --external zod --external @a2a-js/sdk --splitting",
+		"build": "bun build src/index.ts src/ai.ts src/a2a.ts src/integrations/ai-sdk.ts src/integrations/elizaos.ts src/integrations/mastra.ts --outdir dist --target node --format esm --external ai --external zod --external @a2a-js/sdk --external @x402/evm --external @x402/fetch --external viem --splitting",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"prepublishOnly": "bun run build"
 	},
 	"peerDependencies": {
 		"ai": "^6",
-		"zod": "^3.24"
+		"zod": "^3.24",
+		"@x402/evm": "^2.8.0",
+		"@x402/fetch": "^2.8.0",
+		"viem": "^2"
 	},
 	"peerDependenciesMeta": {
-		"@a2a-js/sdk": {
-			"optional": true
-		}
+		"@x402/evm": { "optional": true },
+		"@x402/fetch": { "optional": true },
+		"viem": { "optional": true }
 	},
 	"dependencies": {
 		"@a2a-js/sdk": "^0.3.10"
@@ -54,7 +65,10 @@
 		"@w3stor/db": "workspace:*",
 		"@w3stor/modules": "workspace:*",
 		"@types/bun": "latest",
+		"@x402/evm": "^2.8.0",
+		"@x402/fetch": "^2.8.0",
 		"ai": "^6",
+		"viem": "^2",
 		"zod": "^3.24"
 	},
 	"keywords": [
@@ -66,7 +80,10 @@
 		"agent",
 		"a2a",
 		"mcp",
-		"x402"
+		"x402",
+		"vercel-ai-sdk",
+		"elizaos",
+		"mastra"
 	],
 	"license": "MIT",
 	"repository": {

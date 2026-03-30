@@ -111,50 +111,22 @@ export function pullPieceToSecondaries(
 	);
 }
 
-/**
- * Commit: Register piece in provider's on-chain dataset via addPieces.
- */
-async function commitPieceToProvider(
-	client: FilecoinClient,
-	car: PreBuiltCar,
-	providerConfig: SPProviderConfig,
-	metadata: Record<string, string>,
-	onProgress?: CarUploadOptions["onProgress"],
-): Promise<{ txHash: `0x${string}`; statusUrl: string }> {
-	onProgress?.("adding_pieces", {
-		dataSetId: providerConfig.datasetId.toString(),
-	});
-
-	const result = await addPieces(client, {
-		serviceURL: providerConfig.url,
-		dataSetId: BigInt(providerConfig.datasetId),
-		clientDataSetId: BigInt(providerConfig.clientDataSetId),
-		pieces: [
-			{
-				pieceCid: car.pieceCid,
-				metadata,
-			},
-		],
-	});
-
-	onProgress?.("tx_submitted", { txHash: result.txHash });
-
-	await SP.waitForAddPieces({ statusUrl: result.statusUrl });
-
-	onProgress?.("tx_confirmed");
-
-	return result;
-}
-
 export interface AllProvidersResult {
 	succeeded: CarUploadResult[];
 	failed: Array<{ configId: string; error: string }>;
 	totalProviders: number;
 }
 
-export type OnProviderCommit = (result: CarUploadResult & { configId: string }) => void | Promise<void>;
+export type OnProviderCommit = (
+	result: CarUploadResult & { configId: string },
+) => void | Promise<void>;
 export type OnProviderFail = (failure: { configId: string; error: string }) => void | Promise<void>;
-export type OnProviderProgress = (update: { configId: string; name: string; status: string; txHash?: string }) => void | Promise<void>;
+export type OnProviderProgress = (update: {
+	configId: string;
+	name: string;
+	status: string;
+	txHash?: string;
+}) => void | Promise<void>;
 
 /**
  * Upload a file to all configured storage providers using the store/pull/commit pattern:
@@ -213,9 +185,17 @@ export async function uploadCarToAllProviders(
 		};
 
 		// --- Phase 1: Store piece on primary SP ---
-		await options.onProviderProgress?.({ configId: primaryProvider.id, name: primaryProvider.name, status: "uploading" });
+		await options.onProviderProgress?.({
+			configId: primaryProvider.id,
+			name: primaryProvider.name,
+			status: "uploading",
+		});
 		await storePieceToPrimary(car, primaryProvider, options.onProgress);
-		await options.onProviderProgress?.({ configId: primaryProvider.id, name: primaryProvider.name, status: "piece_parked" });
+		await options.onProviderProgress?.({
+			configId: primaryProvider.id,
+			name: primaryProvider.name,
+			status: "piece_parked",
+		});
 
 		// --- Phase 2: Pull piece to secondary SPs ---
 		if (secondaryProviders.length > 0) {
@@ -277,7 +257,11 @@ export async function uploadCarToAllProviders(
 
 		const commitResults = await Promise.allSettled(
 			spConfig.providers.map(async (providerConfig) => {
-				await options.onProviderProgress?.({ configId: providerConfig.id, name: providerConfig.name, status: "committing" });
+				await options.onProviderProgress?.({
+					configId: providerConfig.id,
+					name: providerConfig.name,
+					status: "committing",
+				});
 
 				// addPieces submits the tx — we get txHash back before waiting for confirmation
 				const addResult = await addPieces(client, {
@@ -288,12 +272,22 @@ export async function uploadCarToAllProviders(
 				});
 
 				// Fire tx_submitted with txHash immediately
-				await options.onProviderProgress?.({ configId: providerConfig.id, name: providerConfig.name, status: "tx_submitted", txHash: addResult.txHash });
+				await options.onProviderProgress?.({
+					configId: providerConfig.id,
+					name: providerConfig.name,
+					status: "tx_submitted",
+					txHash: addResult.txHash,
+				});
 
 				// Wait for on-chain confirmation — if this times out, the tx is still on-chain
 				try {
 					await SP.waitForAddPieces({ statusUrl: addResult.statusUrl });
-					await options.onProviderProgress?.({ configId: providerConfig.id, name: providerConfig.name, status: "tx_confirmed", txHash: addResult.txHash });
+					await options.onProviderProgress?.({
+						configId: providerConfig.id,
+						name: providerConfig.name,
+						status: "tx_confirmed",
+						txHash: addResult.txHash,
+					});
 				} catch (waitError) {
 					// TX was submitted but confirmation timed out — still count as success
 					// since the tx exists on-chain. The provider progress stays at tx_submitted.

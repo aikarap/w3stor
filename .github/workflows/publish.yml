@@ -1,36 +1,16 @@
-# This workflow is currently deactivated (manual dispatch only).
-# To activate automatic publishing, add triggers such as:
-#
-#   on:
-#     release:
-#       types: [published]
-#     push:
-#       branches: [main]
-#       paths:
-#         - 'packages/sdk/**'
-#         - 'packages/cli/**'
-#
-# For now, trigger it manually from the Actions tab using workflow_dispatch.
-#
-# Prerequisites for publishing:
-#   1. Add NPM_TOKEN secret: GitHub repo → Settings → Secrets → Actions → New repository secret
-#      (Generate at npmjs.com → Profile → Access Tokens → "Automation" type)
-#   2. Bump version in packages/sdk/package.json or packages/cli/package.json before pushing
-#      (npm rejects duplicate versions — publish will fail if version already exists)
-
-name: Publish Packages
+name: Release Packages
 
 on:
   push:
     branches: [main]
     paths:
-      - 'packages/sdk/**'
-      - 'packages/cli/**'
+      - "packages/sdk/**"
+      - "packages/cli/**"
 
   workflow_dispatch:
     inputs:
       package:
-        description: "Which package to publish"
+        description: "Which package to release"
         required: true
         type: choice
         options:
@@ -43,15 +23,22 @@ on:
         type: boolean
         default: true
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
 jobs:
-  publish-sdk:
-    if: ${{ inputs.package == 'sdk' || inputs.package == 'both' }}
-    name: Publish @w3stor/sdk
+  release-sdk:
+    name: Release @w3stor/sdk
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    if: >
+      (github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.package == 'sdk' || inputs.package == 'both'))
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -68,20 +55,24 @@ jobs:
       - name: Build SDK
         run: bun --filter @w3stor/sdk build
 
-      - name: Publish SDK
+      - name: Semantic Release (SDK)
         working-directory: packages/sdk
-        run: npm publish ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release ${{ inputs.dry_run && '--dry-run' || '' }}
 
-  publish-cli:
-    if: ${{ inputs.package == 'cli' || inputs.package == 'both' }}
-    name: Publish @w3stor/cli
+  release-cli:
+    name: Release @w3stor/cli
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    if: >
+      (github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.package == 'cli' || inputs.package == 'both'))
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -98,8 +89,10 @@ jobs:
       - name: Build CLI
         run: bun --filter @w3stor/cli build
 
-      - name: Publish CLI
+      - name: Semantic Release (CLI)
         working-directory: packages/cli
-        run: npm publish ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release ${{ inputs.dry_run && '--dry-run' || '' }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Clock } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { BlurFade } from "@/components/ui/blur-fade";
@@ -8,28 +8,32 @@ import { BorderBeam } from "@/components/ui/border-beam";
 import { Card, CardContent } from "@/components/ui/card";
 import { SpotlightGrid } from "@/components/ui/spotlight-grid";
 
-const liveSnippet = `import { generateText } from "ai";
-import { storeFile } from "./w3stor-tools";
+const liveSnippet = `import { storeFile, listFiles, checkStatus } from "@w3stor/sdk/ai-sdk";
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 const { text } = await generateText({
   model: openai("gpt-4o"),
-  tools: { storeFile },
+  tools: { storeFile, listFiles, checkStatus },
   prompt: "Upload research.pdf to Filecoin",
 });`;
 
-const comingSoon = [
+const integrations = [
 	{
 		name: "Mastra",
+		href: "/docs/mastra",
 		description:
 			"Agent orchestration framework with built-in w3stor integration for multi-step workflows.",
 	},
 	{
 		name: "ElizaOS",
+		href: "/docs/elizaos",
 		description: "Autonomous agent OS plugin — storage actions as first-class agent capabilities.",
 	},
 	{
-		name: "Anthropic Claude SDK",
-		description: "Native tool_use integration for Claude models with streaming artifact storage.",
+		name: "A2A Protocol",
+		href: "/docs/a2a",
+		description: "Agent-to-Agent communication via JSON-RPC 2.0 for cross-agent storage operations.",
 	},
 ];
 
@@ -42,8 +46,8 @@ export function FrameworkIntegrations() {
 				</p>
 				<h2 className="mb-4 text-center text-3xl font-bold">Connect Any AI Framework</h2>
 				<p className="mx-auto mb-12 max-w-xl text-center text-muted-foreground">
-					Drop w3stor into your existing agent stack. Live today with Vercel AI SDK — more
-					frameworks coming soon.
+					Drop w3stor into your existing agent stack. Import tools from the SDK and start storing
+					files on Filecoin in minutes.
 				</p>
 			</BlurFade>
 
@@ -73,7 +77,7 @@ export function FrameworkIntegrations() {
 									no extra infrastructure.
 								</p>
 								<Link
-									href="/docs/integrations/vercel-ai-sdk"
+									href="/docs/ai-sdk"
 									className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
 								>
 									View integration docs <ArrowRight className="h-4 w-4" />
@@ -97,25 +101,24 @@ export function FrameworkIntegrations() {
 				</Card>
 			</BlurFade>
 
-			{/* Coming Soon cards */}
+			{/* Live integration cards */}
 			<SpotlightGrid glowColor="139, 92, 246" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-				{comingSoon.map((item, i) => (
+				{integrations.map((item, i) => (
 					<BlurFade key={item.name} delay={0.2 + i * 0.08}>
-						<Card data-spotlight-card className="relative overflow-hidden border-border/40 bg-card/60 opacity-80 transition-opacity hover:opacity-100">
-							<CardContent className="p-6">
-								<div className="mb-3 flex items-center gap-3">
-									<span className="font-semibold">{item.name}</span>
-									<Badge
-										variant="outline"
-										className="border-border/50 text-muted-foreground text-xs"
-									>
-										<Clock className="mr-1 h-3 w-3" />
-										Coming Soon
-									</Badge>
-								</div>
-								<p className="text-sm text-muted-foreground">{item.description}</p>
-							</CardContent>
-						</Card>
+						<Link href={item.href}>
+							<Card data-spotlight-card className="relative overflow-hidden border-border/40 bg-card/60 transition-opacity hover:opacity-100 hover:border-foreground/20">
+								<CardContent className="p-6">
+									<div className="mb-3 flex items-center gap-3">
+										<span className="font-semibold">{item.name}</span>
+										<Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-xs">
+											<Check className="mr-1 h-3 w-3" />
+											Live
+										</Badge>
+									</div>
+									<p className="text-sm text-muted-foreground">{item.description}</p>
+								</CardContent>
+							</Card>
+						</Link>
 					</BlurFade>
 				))}
 			</SpotlightGrid>

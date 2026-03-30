@@ -9,6 +9,7 @@ import {
 	AgentTools,
 } from "@/components/ai-elements/agent";
 import { CodeBlock } from "@/components/ai-elements/code-block";
+import { PackageInstall } from "@/components/ai-elements/package-install";
 import { Snippet, SnippetCopyButton, SnippetInput } from "@/components/ai-elements/snippet";
 import {
 	Terminal,
@@ -201,16 +202,8 @@ export default function CLIPage() {
 							</Snippet>
 						</div>
 						<div>
-							<p className="mb-2 text-sm text-muted-foreground flex items-center gap-2">
-								Via npm:{" "}
-								<Badge variant="outline" className="text-xs">
-									coming soon
-								</Badge>
-							</p>
-							<Snippet code="npm install -g w3stor">
-								<SnippetInput />
-								<SnippetCopyButton />
-							</Snippet>
+							<p className="mb-2 text-sm text-muted-foreground">Via package manager:</p>
+							<PackageInstall packages="@w3stor/cli" global />
 						</div>
 					</div>
 				</section>

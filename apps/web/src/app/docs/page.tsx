@@ -2,8 +2,8 @@
 
 import { Bot, Cpu, Package, Sparkles, Terminal, Wrench } from "lucide-react";
 import Link from "next/link";
+import { CodeBlock } from "@/components/ai-elements/code-block";
 import { SchemaDisplay } from "@/components/ai-elements/schema-display";
-import { Snippet, SnippetCopyButton, SnippetInput } from "@/components/ai-elements/snippet";
 import { BlurFade } from "@/components/ui/blur-fade";
 
 const integrations = [
@@ -67,10 +67,10 @@ export default function DocsPage() {
 						Upload a file with a single cURL command. Include an x402 payment header for paid
 						endpoints.
 					</p>
-					<Snippet code='curl -X POST https://api.w3s.storage/upload -H "Content-Type: multipart/form-data" -F "file=@photo.jpg"'>
-						<SnippetInput />
-						<SnippetCopyButton />
-					</Snippet>
+					<CodeBlock
+						code={'curl -X POST https://api.w3s.storage/upload \\\n  -H "Content-Type: multipart/form-data" \\\n  -F "file=@photo.jpg"'}
+						language="bash"
+					/>
 				</section>
 			</BlurFade>
 
