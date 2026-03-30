@@ -8,7 +8,6 @@ const ReactFlowProvider = dynamic(
 );
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import type { Metadata } from "next";
 import { useCallback, useEffect, useState } from "react";
 import { StorageRequest } from "@/components/swarm/storage-request";
 import { ExecutionPanel } from "@/components/workflow/execution-panel";
@@ -28,10 +27,6 @@ import {
 import { estimateCost } from "@/lib/workflow/cost";
 import type { StorageArtifact } from "@/lib/workflow/types";
 
-export const metadata: Metadata = {
-	title: "Workflow Builder | W3S Agent",
-	description: "Build and execute multi-agent storage workflows with x402 micropayments.",
-};
 export default function SwarmPage() {
 	const nodes = useAtomValue(workflowNodesAtom);
 	const edges = useAtomValue(workflowEdgesAtom);
