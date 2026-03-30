@@ -27,6 +27,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.6",
 		"@semantic-release/commit-analyzer": "^13",
+		"@semantic-release/exec": "^7",
 		"@semantic-release/github": "^11",
 		"@semantic-release/npm": "^12",
 		"@semantic-release/release-notes-generator": "^14",
