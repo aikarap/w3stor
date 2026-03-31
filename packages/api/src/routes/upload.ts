@@ -1,4 +1,5 @@
 import { createFile, createUserFile, findFileByCID, findOrCreateUser } from "@w3stor/db";
+import { addFile } from "@w3stor/graph";
 import { pinFileToIPFS } from "@w3stor/modules/pinata";
 import { enqueueFilecoinUpload } from "@w3stor/modules/queue";
 import { logger } from "@w3stor/shared";
@@ -42,6 +43,20 @@ uploadRoute.post("/upload", async (c) => {
 				metadata: {},
 			});
 
+			// Fire-and-forget: add to knowledge graph
+			addFile({
+				walletAddress,
+				cid,
+				filename: file.name,
+				contentType: file.type || "application/octet-stream",
+				sizeBytes: Number(sizeBytes),
+			}).catch((err) => {
+				logger.warn("Graph add failed (non-blocking)", {
+					cid,
+					error: err instanceof Error ? err.message : String(err),
+				});
+			});
+
 			return c.json({
 				cid,
 				status: existing.status,
@@ -64,6 +79,20 @@ uploadRoute.post("/upload", async (c) => {
 			cid,
 			filename: file.name,
 			metadata: {},
+		});
+
+		// Fire-and-forget: add to knowledge graph
+		addFile({
+			walletAddress,
+			cid,
+			filename: file.name,
+			contentType: file.type || "application/octet-stream",
+			sizeBytes: Number(sizeBytes),
+		}).catch((err) => {
+			logger.warn("Graph add failed (non-blocking)", {
+				cid,
+				error: err instanceof Error ? err.message : String(err),
+			});
 		});
 
 		// Enqueue Filecoin upload job

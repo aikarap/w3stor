@@ -9,6 +9,13 @@
 		},
 		"workflow-execute": {
 			"pricePerOperation": 0.001
+		},
+		"graph-add-file": { "pricePerOperation": 0.00005 },
+		"graph-connect": { "pricePerOperation": 0.00002 },
+		"batch-upload": {
+			"pricePerFile": 0.0002,
+			"pricePerMB": 0.0001,
+			"pricePerConnection": 0.00005
 		}
 	},
 	"networks": {

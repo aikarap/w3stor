@@ -57,6 +57,20 @@ interface Config {
 	ai: {
 		defaultModel: string;
 	};
+	neo4j: {
+		uri: string;
+		user: string;
+		password: string;
+	};
+	embedding: {
+		model: string;
+	};
+	siwe: {
+		jwtSecret: string;
+		domain: string;
+		nonceExpiryMs: number;
+		tokenExpirySeconds: number;
+	};
 }
 
 export interface X402NetworkConfig {
@@ -180,6 +194,21 @@ export const config: Config = {
 
 	ai: {
 		defaultModel: getOptionalEnv("AI_DEFAULT_MODEL") ?? "openai/gpt-4o-mini",
+	},
+
+	neo4j: {
+		uri: getOptionalEnv("NEO4J_URI", "bolt://localhost:7688") || "bolt://localhost:7688",
+		user: getOptionalEnv("NEO4J_USER", "neo4j") || "neo4j",
+		password: getOptionalEnv("NEO4J_PASSWORD", "neo4j_dev") || "neo4j_dev",
+	},
+	embedding: {
+		model: getOptionalEnv("EMBEDDING_MODEL", "text-embedding-3-small") || "text-embedding-3-small",
+	},
+	siwe: {
+		jwtSecret: getOptionalEnv("SIWE_JWT_SECRET", "dev-jwt-secret-change-in-production") || "dev-jwt-secret-change-in-production",
+		domain: getOptionalEnv("SIWE_DOMAIN", "w3stor.xyz") || "w3stor.xyz",
+		nonceExpiryMs: 5 * 60 * 1000,
+		tokenExpirySeconds: 24 * 60 * 60,
 	},
 };
 

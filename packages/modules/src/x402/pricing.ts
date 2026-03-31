@@ -1,7 +1,7 @@
 import { bytesToMB, logger } from "@w3stor/shared";
 import pricingConfig from "./pricing.json";
 
-export type OperationType = "upload" | "attestation" | "workflow-execute";
+export type OperationType = "upload" | "attestation" | "workflow-execute" | "graph-add-file" | "graph-connect" | "batch-upload";
 
 import { createPublicClient, http, parseAbi } from "viem";
 import { getViemChain } from "../chains";
@@ -11,6 +11,9 @@ interface PricingConfig {
 		upload: { pricePerMB: number; minimumCharge: number };
 		attestation: { pricePerOperation: number };
 		"workflow-execute": { pricePerOperation: number };
+		"graph-add-file": { pricePerOperation: number };
+		"graph-connect": { pricePerOperation: number };
+		"batch-upload": { pricePerFile: number; pricePerMB: number; pricePerConnection: number };
 	};
 	networks: {
 		[networkId: string]: {
@@ -54,6 +57,12 @@ export function calculateOperationPrice(
 		case "workflow-execute":
 			basePrice = pricing.operations["workflow-execute"].pricePerOperation;
 			break;
+		case "graph-add-file":
+		case "graph-connect": {
+			const opConfig = pricing.operations[operation] as { pricePerOperation: number };
+			basePrice = opConfig.pricePerOperation;
+			break;
+		}
 
 		default:
 			throw new Error(`Unknown operation type: ${operation}`);
@@ -71,6 +80,35 @@ export function calculateOperationPrice(
 	}
 
 	return Number((basePrice * networkMultiplier * tokenMultiplier).toFixed(10));
+}
+
+export function calculateBatchPrice(
+	fileCount: number,
+	sizeBytes: number,
+	connectionCount: number,
+	network?: string,
+	token?: string,
+): number {
+	const batchConfig = pricing.operations["batch-upload"];
+
+	const sizeMB = sizeBytes / (1024 * 1024);
+	let price =
+		fileCount * batchConfig.pricePerFile +
+		sizeMB * batchConfig.pricePerMB +
+		connectionCount * batchConfig.pricePerConnection;
+
+	const networkKey = network || Object.keys(pricing.networks)[0];
+	const networkConfig = pricing.networks[networkKey];
+	if (networkConfig) {
+		price *= networkConfig.multiplier;
+		const tokenKey = token || Object.keys(networkConfig.tokens)[0];
+		const tokenConfig = networkConfig.tokens[tokenKey];
+		if (tokenConfig) {
+			price *= tokenConfig.multiplier;
+		}
+	}
+
+	return price;
 }
 
 const eip712Abi = parseAbi([

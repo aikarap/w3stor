@@ -19,6 +19,103 @@ export interface W3StorConfig {
 	fetch?: typeof fetch;
 }
 
+/**
+ * Manages SIWE (Sign-In With Ethereum) authentication for the W3Stor API.
+ * Caches the JWT token in memory and handles re-authentication when needed.
+ */
+export class SiweAuthManager {
+	private apiUrl: string;
+	private sign: (message: string) => Promise<string>;
+	private address: string;
+	private token: string | null = null;
+	private tokenExpiry: number | null = null;
+
+	constructor(apiUrl: string, address: string, sign: (message: string) => Promise<string>) {
+		this.apiUrl = apiUrl;
+		this.address = address;
+		this.sign = sign;
+	}
+
+	async authenticate(): Promise<void> {
+		// Fetch nonce
+		const nonceRes = await globalThis.fetch(`${this.apiUrl}/auth/siwe/nonce`);
+		if (!nonceRes.ok) {
+			const body = await nonceRes.text().catch(() => "");
+			throw new Error(`w3stor SIWE nonce failed (${nonceRes.status}): ${body}`);
+		}
+		const { nonce } = await nonceRes.json();
+
+		// Build SIWE message
+		const domain = new URL(this.apiUrl).hostname;
+		const issuedAt = new Date().toISOString();
+		const message = `${domain} wants you to sign in with your Ethereum account:\n${this.address}\n\nSign in to W3Stor\n\nURI: https://${domain}\nVersion: 1\nChain ID: 84532\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
+
+		// Sign message
+		const signature = await this.sign(message);
+
+		// Verify and receive JWT
+		const verifyRes = await globalThis.fetch(`${this.apiUrl}/auth/siwe/verify`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ message, signature }),
+		});
+		if (!verifyRes.ok) {
+			const body = await verifyRes.text().catch(() => "");
+			throw new Error(`w3stor SIWE verify failed (${verifyRes.status}): ${body}`);
+		}
+		const { token, expiresIn } = await verifyRes.json();
+		this.token = token;
+		// Default to 1 hour if expiresIn not provided; store as ms timestamp
+		this.tokenExpiry = Date.now() + (expiresIn ? expiresIn * 1000 : 3600 * 1000);
+	}
+
+	async getAuthHeaders(): Promise<{ Authorization: string }> {
+		if (!this.token || !this.tokenExpiry || Date.now() >= this.tokenExpiry) {
+			await this.authenticate();
+		}
+		return { Authorization: `Bearer ${this.token}` };
+	}
+
+	async refresh(): Promise<void> {
+		this.token = null;
+		this.tokenExpiry = null;
+		await this.authenticate();
+	}
+}
+
+/**
+ * Creates a SiweAuthManager from a W3StorConfig.
+ * Resolves the account from config.account or config.privateKey / W3S_PRIVATE_KEY env var.
+ */
+export async function createSiweAuth(config?: W3StorConfig): Promise<SiweAuthManager> {
+	const apiUrl = getApiUrl(config);
+
+	let account = config?.account as
+		| { address: string; signMessage: (params: { message: string }) => Promise<string> }
+		| undefined;
+
+	if (!account) {
+		const pk =
+			config?.privateKey ??
+			(typeof process !== "undefined" ? process.env?.W3S_PRIVATE_KEY : undefined);
+
+		if (pk) {
+			const { privateKeyToAccount } = await import("viem/accounts");
+			account = privateKeyToAccount(pk as `0x${string}`) as unknown as {
+				address: string;
+				signMessage: (params: { message: string }) => Promise<string>;
+			};
+		}
+	}
+
+	if (!account) {
+		throw new Error("w3stor SIWE auth requires an account (privateKey or account in config)");
+	}
+
+	const sign = (message: string) => account!.signMessage({ message });
+	return new SiweAuthManager(apiUrl, account.address, sign);
+}
+
 export function getApiUrl(config?: W3StorConfig): string {
 	return (
 		config?.apiUrl ??

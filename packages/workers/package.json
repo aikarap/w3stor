@@ -16,6 +16,7 @@
 		"@w3stor/shared": "workspace:*",
 		"@w3stor/db": "workspace:*",
 		"@w3stor/modules": "workspace:*",
+		"@w3stor/graph": "workspace:*",
 		"bullmq": "^5.70.4",
 		"ioredis": "^5.10.0"
 	}

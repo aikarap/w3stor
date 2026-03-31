@@ -8,7 +8,8 @@
 		"./filecoin": "./src/filecoin/index.ts",
 		"./pinata": "./src/pinata/client.ts",
 		"./x402": "./src/x402/index.ts",
-		"./queue": "./src/queue/index.ts"
+		"./queue": "./src/queue/index.ts",
+		"./siwe": "./src/siwe/index.ts"
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",
@@ -18,6 +19,8 @@
 		"@w3stor/shared": "workspace:*",
 		"@w3stor/db": "workspace:*",
 		"@filoz/synapse-core": "^0.3.0",
+		"hono": "^4",
+		"siwe": "^2.3.2",
 		"@filoz/synapse-sdk": "^0.39.0",
 		"@ipld/car": "^5.4.2",
 		"@x402/core": "^2.3.0",
