@@ -107,6 +107,7 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStr
 		fg.d3ReheatSimulation();
 	}, [chargeStrength]);
 
+
 	const graphData = useMemo(
 		() => ({
 			nodes: nodes.map((n) => ({ ...n })),
@@ -127,6 +128,7 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStr
 			width={width}
 			height={height}
 			backgroundColor="rgba(0,0,0,0)"
+			controlType="orbit"
 			nodeThreeObject={(node: any) => {
 				const n = node as GraphNode;
 				const r = getNodeRadius(n);
