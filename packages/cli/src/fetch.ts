@@ -26,50 +26,7 @@ export function createPaymentFetch(): (
 	const client = new x402Client();
 	client.register("eip155:*", new ExactEvmScheme(toClientEvmSigner(account, publicClient)));
 
-	// x402 wrapFetchWithPayment converts input to a Request internally,
-	// which consumes the FormData body stream. On the 402→retry cycle,
-	// the second fetch sends an empty body because the stream was already read.
-	// Fix: intercept every fetch call. On first call, clone the Request and
-	// buffer the body. On subsequent calls (retry), rebuild from buffer.
-	let bodyBuffer: ArrayBuffer | null = null;
-	let bodyContentType: string | null = null;
-	let fetchCallCount = 0;
-
-	const replayableFetch: typeof fetch = async (input: any, init?: any) => {
-		fetchCallCount++;
-		const req: Request = input instanceof Request ? input : new Request(input, init);
-
-		if (fetchCallCount === 1) {
-			// First call — clone before x402 consumes the body
-			const cloned = req.clone();
-			bodyContentType = cloned.headers.get("content-type");
-			bodyBuffer = await cloned.arrayBuffer();
-			return fetch(req);
-		}
-
-		// Retry — body is consumed, rebuild from buffer
-		if (bodyBuffer) {
-			const headers = new Headers(req.headers);
-			if (bodyContentType) headers.set("content-type", bodyContentType);
-			const freshReq = new Request(req.url, {
-				method: req.method,
-				headers,
-				body: bodyBuffer,
-			});
-			return fetch(freshReq);
-		}
-
-		return fetch(req);
-	};
-
-	const x402Fetch = wrapFetchWithPayment(replayableFetch, client);
-
-	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-		bodyBuffer = null;
-		bodyContentType = null;
-		fetchCallCount = 0;
-		return x402Fetch(input, init);
-	};
+	return wrapFetchWithPayment(fetch, client);
 }
 
 /**
