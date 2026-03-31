@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useRef, useMemo } from "react";
+import { useCallback, useEffect, useRef, useMemo } from "react";
 import * as THREE from "three";
 
 const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), {
@@ -35,6 +35,7 @@ interface ForceGraphProps {
 	onNodeClick?: (node: GraphNode) => void;
 	width?: number;
 	height?: number;
+	chargeStrength?: number;
 }
 
 const NODE_COLORS: Record<string, number> = {
@@ -87,7 +88,7 @@ function makeTextSprite(text: string, size: number, color: string): THREE.Sprite
 	return sprite;
 }
 
-export function ForceGraph({ nodes, edges, onNodeClick, width, height }: ForceGraphProps) {
+export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStrength = -120 }: ForceGraphProps) {
 	const fgRef = useRef<any>(null);
 
 	const handleNodeClick = useCallback(
@@ -98,6 +99,13 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height }: ForceGr
 		},
 		[onNodeClick],
 	);
+
+	useEffect(() => {
+		const fg = fgRef.current;
+		if (!fg) return;
+		fg.d3Force("charge")?.strength(chargeStrength);
+		fg.d3ReheatSimulation();
+	}, [chargeStrength]);
 
 	const graphData = useMemo(
 		() => ({

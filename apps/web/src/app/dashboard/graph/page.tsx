@@ -253,6 +253,7 @@ function GraphClient() {
 	const [error, setError] = useState<string | null>(null);
 	const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
 	const [searchResults, setSearchResults] = useState<GraphNode[] | null>(null);
+	const [spread, setSpread] = useState(50);
 	const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Restore token from localStorage on wallet change
@@ -473,8 +474,22 @@ function GraphClient() {
 				</div>
 			</div>
 
-			{/* Legend */}
-			<GraphLegend />
+			{/* Legend + spread slider */}
+			<div className="flex flex-wrap items-center justify-between gap-4">
+				<GraphLegend />
+				<div className="flex items-center gap-2 text-xs text-muted-foreground">
+					<span>Compact</span>
+					<input
+						type="range"
+						min={0}
+						max={100}
+						value={spread}
+						onChange={(e) => setSpread(Number(e.target.value))}
+						className="w-28 h-1.5 accent-[#6c63ff] cursor-pointer"
+					/>
+					<span>Spread</span>
+				</div>
+			</div>
 
 			{/* Graph canvas + detail panel */}
 			<div className="flex gap-4" style={{ height: "calc(100vh - 340px)", minHeight: "480px" }}>
@@ -506,7 +521,7 @@ function GraphClient() {
 							<p className="text-sm text-muted-foreground">No graph data found for this wallet.</p>
 						</div>
 					)}
-					<ForceGraph nodes={nodes} edges={edges} onNodeClick={setSelectedNode} />
+					<ForceGraph nodes={nodes} edges={edges} onNodeClick={setSelectedNode} chargeStrength={-(30 + spread * 3.7)} />
 				</div>
 
 				{selectedNode && <FileDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} />}
