@@ -16,7 +16,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import { type W3StorConfig, createFetch, getApiUrl } from "./client";
+import { type W3StorConfig, createFetch, createSiweAuth, getApiUrl } from "./client";
 
 async function assertOk(res: Response, label: string): Promise<void> {
 	if (!res.ok) {
@@ -28,6 +28,7 @@ async function assertOk(res: Response, label: string): Promise<void> {
 export async function createTools(config?: W3StorConfig) {
 	const apiUrl = getApiUrl(config);
 	const f = await createFetch(config);
+	const siweAuth = await createSiweAuth(config).catch(() => null);
 
 	const storeFile = tool({
 		description: "Upload a file to decentralized storage (IPFS + Filecoin)",
@@ -143,7 +144,8 @@ export async function createTools(config?: W3StorConfig) {
 				limit: String(limit),
 				threshold: String(threshold),
 			});
-			const res = await f(`${apiUrl}/graph/search?${params}`);
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
+			const res = await f(`${apiUrl}/graph/search?${params}`, { headers: authHeaders });
 			await assertOk(res, "graph search");
 			return res.json();
 		},
@@ -159,7 +161,8 @@ export async function createTools(config?: W3StorConfig) {
 		execute: async ({ cid, depth, relationship }) => {
 			const params = new URLSearchParams({ depth: String(depth) });
 			if (relationship) params.set("relationship", relationship);
-			const res = await f(`${apiUrl}/graph/traverse/${cid}?${params}`);
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
+			const res = await f(`${apiUrl}/graph/traverse/${cid}?${params}`, { headers: authHeaders });
 			await assertOk(res, "graph traverse");
 			return res.json();
 		},
@@ -171,7 +174,11 @@ export async function createTools(config?: W3StorConfig) {
 			cid: z.string().describe("CID of the file to remove"),
 		}),
 		execute: async ({ cid }) => {
-			const res = await f(`${apiUrl}/graph/files/${cid}`, { method: "DELETE" });
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
+			const res = await f(`${apiUrl}/graph/files/${cid}`, {
+				method: "DELETE",
+				headers: authHeaders,
+			});
 			await assertOk(res, "graph remove file");
 			return res.json();
 		},
@@ -185,9 +192,10 @@ export async function createTools(config?: W3StorConfig) {
 			relationship: z.string().describe("Relationship label to remove"),
 		}),
 		execute: async ({ fromCid, toCid, relationship }) => {
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
 			const res = await f(`${apiUrl}/graph/connections`, {
 				method: "DELETE",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...authHeaders },
 				body: JSON.stringify({ fromCid, toCid, relationship }),
 			});
 			await assertOk(res, "graph disconnect files");
@@ -211,10 +219,60 @@ export async function createTools(config?: W3StorConfig) {
 		},
 	});
 
+	const batchUpload = tool({
+		description: "Upload multiple files with graph connections in one operation",
+		parameters: z.object({
+			files: z.array(z.object({
+				filePath: z.string().describe("Path to file"),
+				description: z.string().optional(),
+				tags: z.string().optional().describe("Comma-separated tags"),
+				connections: z.array(z.object({
+					toCid: z.string().optional(),
+					toIndex: z.number().optional(),
+					relationship: z.string(),
+				})).optional(),
+			})),
+		}),
+		execute: async ({ files }) => {
+			const formData = new FormData();
+			let totalSize = 0;
+			let totalConnections = 0;
+
+			for (let i = 0; i < files.length; i++) {
+				const fileBlob = await f(files[i].filePath).then((r) => r.blob());
+				formData.append(`file_${i}`, fileBlob);
+				totalSize += fileBlob.size;
+				totalConnections += files[i].connections?.length || 0;
+			}
+
+			formData.append("metadata", JSON.stringify({
+				files: files.map((file, i) => ({
+					index: i,
+					description: file.description,
+					tags: file.tags?.split(",").map((t) => t.trim()),
+					connections: file.connections,
+				})),
+			}));
+
+			const res = await f(`${apiUrl}/upload/batch`, {
+				method: "POST",
+				body: formData,
+				headers: {
+					"x-batch-files": String(files.length),
+					"x-batch-size": String(totalSize),
+					"x-batch-connections": String(totalConnections),
+				},
+			});
+			await assertOk(res, "batch upload");
+			return res.json();
+		},
+	});
+
 	return {
 		storeFile, listFiles, checkStatus, attestFile,
 		graphAddFile, graphConnectFiles, graphSearch, graphTraverse,
 		graphRemoveFile, graphDisconnectFiles, graphConnectAgent,
+		batchUpload,
 	};
 }
 

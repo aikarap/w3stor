@@ -14,7 +14,7 @@
  * ```
  */
 
-import { createFetch, getApiUrl, type W3StorConfig } from "./client";
+import { createFetch, createSiweAuth, getApiUrl, type W3StorConfig } from "./client";
 
 // ---- ElizaOS-compatible type definitions ----
 
@@ -190,7 +190,7 @@ function createStatusAction(apiUrl: string, f: typeof fetch): Action {
 	};
 }
 
-function createSearchKnowledgeGraphAction(apiUrl: string, f: typeof fetch): Action {
+function createSearchKnowledgeGraphAction(apiUrl: string, f: typeof fetch, siweAuth: import("./client").SiweAuthManager | null): Action {
 	return {
 		name: "SEARCH_KNOWLEDGE_GRAPH",
 		similes: ["FIND_FILES", "SEMANTIC_SEARCH", "SEARCH_GRAPH", "KNOWLEDGE_SEARCH", "FIND_RELATED"],
@@ -210,7 +210,8 @@ function createSearchKnowledgeGraphAction(apiUrl: string, f: typeof fetch): Acti
 		handler: async (_runtime: unknown, message: Memory) => {
 			const query = message.content.text ?? "";
 			const params = new URLSearchParams({ q: query, limit: "10", threshold: "0.5" });
-			const res = await f(`${apiUrl}/graph/search?${params}`);
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
+			const res = await f(`${apiUrl}/graph/search?${params}`, { headers: authHeaders });
 			if (!res.ok) {
 				const body = await res.text().catch(() => "");
 				throw new Error(`w3stor graph search failed (${res.status}): ${body}`);
@@ -311,11 +312,87 @@ function createAddToKnowledgeGraphAction(apiUrl: string, f: typeof fetch): Actio
 	};
 }
 
+function createBatchUploadAction(apiUrl: string, f: typeof fetch): Action {
+	return {
+		name: "BATCH_UPLOAD_FILES",
+		similes: ["UPLOAD_MULTIPLE", "BATCH_STORE", "UPLOAD_BATCH", "STORE_MULTIPLE_FILES"],
+		description: "Upload multiple files with graph connections in one operation",
+
+		validate: async (_runtime: unknown, message: Memory) => {
+			const text = message.content.text?.toLowerCase() ?? "";
+			const hasMultiple = (message.content.attachments?.length ?? 0) > 1;
+			return (
+				hasMultiple ||
+				text.includes("batch") ||
+				(text.includes("upload") && text.includes("multiple")) ||
+				(text.includes("store") && text.includes("files"))
+			);
+		},
+
+		handler: async (_runtime: unknown, message: Memory) => {
+			const attachments = message.content.attachments ?? [];
+			if (attachments.length === 0) {
+				return { text: "Please attach files to batch upload to decentralized storage." };
+			}
+
+			const formData = new FormData();
+			let totalSize = 0;
+
+			for (let i = 0; i < attachments.length; i++) {
+				const blob = new Blob([attachments[i].data as ArrayBuffer], { type: attachments[i].mimeType });
+				formData.append(`file_${i}`, blob, attachments[i].name);
+				totalSize += blob.size;
+			}
+
+			formData.append("metadata", JSON.stringify({
+				files: attachments.map((_: unknown, i: number) => ({ index: i })),
+			}));
+
+			const res = await f(`${apiUrl}/upload/batch`, {
+				method: "POST",
+				body: formData,
+				headers: {
+					"x-batch-files": String(attachments.length),
+					"x-batch-size": String(totalSize),
+					"x-batch-connections": "0",
+				},
+			});
+			if (!res.ok) {
+				const body = await res.text().catch(() => "");
+				throw new Error(`w3stor batch upload failed (${res.status}): ${body}`);
+			}
+			const data = await res.json();
+
+			const summary = (data.files ?? [])
+				.map((r: { cid: string; size: number }) => `- ${r.cid} (${r.size} bytes)`)
+				.join("\n");
+			return {
+				text: `Batch uploaded ${attachments.length} file(s):\n${summary}\n\nPinned on IPFS, replicating to Filecoin SPs.`,
+				data,
+			};
+		},
+
+		examples: [
+			[
+				{ user: "user", content: { text: "Upload all these research files to Filecoin" } },
+				{
+					user: "agent",
+					content: {
+						text: "Batch uploaded 3 file(s):\n- bafkrei... (1024 bytes)\n...\nPinned on IPFS, replicating to Filecoin SPs.",
+						action: "BATCH_UPLOAD_FILES",
+					},
+				},
+			],
+		],
+	};
+}
+
 // ---- Plugin factory ----
 
 export async function createW3StorPlugin(config?: W3StorConfig): Promise<Plugin> {
 	const apiUrl = getApiUrl(config);
 	const f = await createFetch(config);
+	const siweAuth = await createSiweAuth(config).catch(() => null);
 
 	return {
 		name: "w3stor",
@@ -324,8 +401,9 @@ export async function createW3StorPlugin(config?: W3StorConfig): Promise<Plugin>
 			createStoreAction(apiUrl, f),
 			createListAction(apiUrl, f),
 			createStatusAction(apiUrl, f),
-			createSearchKnowledgeGraphAction(apiUrl, f),
+			createSearchKnowledgeGraphAction(apiUrl, f, siweAuth),
 			createAddToKnowledgeGraphAction(apiUrl, f),
+			createBatchUploadAction(apiUrl, f),
 		],
 		evaluators: [],
 		providers: [],

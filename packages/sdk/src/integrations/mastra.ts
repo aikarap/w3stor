@@ -15,7 +15,7 @@
  */
 
 import { z } from "zod";
-import { type W3StorConfig, createFetch, getApiUrl } from "./client";
+import { type W3StorConfig, createFetch, createSiweAuth, getApiUrl } from "./client";
 
 export interface MastraTool<TInput extends z.ZodType = z.ZodType, TOutput extends z.ZodType = z.ZodType> {
 	id: string;
@@ -35,6 +35,7 @@ async function assertOk(res: Response, label: string): Promise<void> {
 export async function createTools(config?: W3StorConfig) {
 	const apiUrl = getApiUrl(config);
 	const f = await createFetch(config);
+	const siweAuth = await createSiweAuth(config).catch(() => null);
 
 	const uploadTool: MastraTool = {
 		id: "w3s-upload",
@@ -204,7 +205,8 @@ export async function createTools(config?: W3StorConfig) {
 				limit: String(context.limit),
 				threshold: String(context.threshold),
 			});
-			const res = await f(`${apiUrl}/graph/search?${params}`);
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
+			const res = await f(`${apiUrl}/graph/search?${params}`, { headers: authHeaders });
 			await assertOk(res, "graph search");
 			return res.json();
 		},
@@ -227,7 +229,8 @@ export async function createTools(config?: W3StorConfig) {
 		execute: async ({ context }) => {
 			const params = new URLSearchParams({ depth: String(context.depth) });
 			if (context.relationship) params.set("relationship", context.relationship);
-			const res = await f(`${apiUrl}/graph/traverse/${context.cid}?${params}`);
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
+			const res = await f(`${apiUrl}/graph/traverse/${context.cid}?${params}`, { headers: authHeaders });
 			await assertOk(res, "graph traverse");
 			return res.json();
 		},
@@ -241,7 +244,11 @@ export async function createTools(config?: W3StorConfig) {
 		}),
 		outputSchema: z.object({ success: z.boolean() }),
 		execute: async ({ context }) => {
-			const res = await f(`${apiUrl}/graph/files/${context.cid}`, { method: "DELETE" });
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
+			const res = await f(`${apiUrl}/graph/files/${context.cid}`, {
+				method: "DELETE",
+				headers: authHeaders,
+			});
 			await assertOk(res, "graph remove file");
 			return res.json();
 		},
@@ -257,9 +264,10 @@ export async function createTools(config?: W3StorConfig) {
 		}),
 		outputSchema: z.object({ success: z.boolean() }),
 		execute: async ({ context }) => {
+			const authHeaders = siweAuth ? await siweAuth.getAuthHeaders() : {};
 			const res = await f(`${apiUrl}/graph/connections`, {
 				method: "DELETE",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...authHeaders },
 				body: JSON.stringify({
 					fromCid: context.fromCid,
 					toCid: context.toCid,
@@ -292,10 +300,65 @@ export async function createTools(config?: W3StorConfig) {
 		},
 	};
 
+	const batchUploadTool: MastraTool = {
+		id: "w3s-batch-upload",
+		description: "Upload multiple files with graph connections in one operation",
+		inputSchema: z.object({
+			files: z.array(z.object({
+				filePath: z.string().describe("Path to file"),
+				description: z.string().optional(),
+				tags: z.string().optional().describe("Comma-separated tags"),
+				connections: z.array(z.object({
+					toCid: z.string().optional(),
+					toIndex: z.number().optional(),
+					relationship: z.string(),
+				})).optional(),
+			})),
+		}),
+		outputSchema: z.object({
+			files: z.array(z.object({ cid: z.string(), size: z.number(), status: z.string() })),
+			connections: z.array(z.object({ fromCid: z.string(), toCid: z.string(), relationship: z.string() })).optional(),
+		}),
+		execute: async ({ context }) => {
+			const formData = new FormData();
+			let totalSize = 0;
+			let totalConnections = 0;
+
+			for (let i = 0; i < context.files.length; i++) {
+				const fileBlob = await f(context.files[i].filePath).then((r: Response) => r.blob());
+				formData.append(`file_${i}`, fileBlob);
+				totalSize += fileBlob.size;
+				totalConnections += context.files[i].connections?.length || 0;
+			}
+
+			formData.append("metadata", JSON.stringify({
+				files: context.files.map((file: { filePath: string; description?: string; tags?: string; connections?: Array<{ toCid?: string; toIndex?: number; relationship: string }> }, i: number) => ({
+					index: i,
+					description: file.description,
+					tags: file.tags?.split(",").map((t: string) => t.trim()),
+					connections: file.connections,
+				})),
+			}));
+
+			const res = await f(`${apiUrl}/upload/batch`, {
+				method: "POST",
+				body: formData,
+				headers: {
+					"x-batch-files": String(context.files.length),
+					"x-batch-size": String(totalSize),
+					"x-batch-connections": String(totalConnections),
+				},
+			});
+			await assertOk(res, "batch upload");
+			return res.json();
+		},
+	};
+
 	return {
 		uploadTool, listTool, statusTool, attestTool,
 		graphAddFileTool, graphConnectFilesTool, graphSearchTool, graphTraverseTool,
 		graphRemoveFileTool, graphDisconnectFilesTool, graphConnectAgentTool,
+		batchUploadTool,
 	};
 }
 
