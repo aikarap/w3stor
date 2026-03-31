@@ -190,6 +190,127 @@ function createStatusAction(apiUrl: string, f: typeof fetch): Action {
 	};
 }
 
+function createSearchKnowledgeGraphAction(apiUrl: string, f: typeof fetch): Action {
+	return {
+		name: "SEARCH_KNOWLEDGE_GRAPH",
+		similes: ["FIND_FILES", "SEMANTIC_SEARCH", "SEARCH_GRAPH", "KNOWLEDGE_SEARCH", "FIND_RELATED"],
+		description: "Semantic search across stored files using natural language",
+
+		validate: async (_runtime: unknown, message: Memory) => {
+			const text = message.content.text?.toLowerCase() ?? "";
+			return (
+				text.includes("search") ||
+				text.includes("find") ||
+				text.includes("look for") ||
+				text.includes("similar") ||
+				text.includes("related")
+			);
+		},
+
+		handler: async (_runtime: unknown, message: Memory) => {
+			const query = message.content.text ?? "";
+			const params = new URLSearchParams({ q: query, limit: "10", threshold: "0.5" });
+			const res = await f(`${apiUrl}/graph/search?${params}`);
+			if (!res.ok) {
+				const body = await res.text().catch(() => "");
+				throw new Error(`w3stor graph search failed (${res.status}): ${body}`);
+			}
+			const data = await res.json();
+			if (!data.results?.length) {
+				return { text: "No matching files found in your knowledge graph.", data };
+			}
+			const summary = data.results
+				.map(
+					(r: { cid: string; score: number; description?: string }) =>
+						`- ${r.cid.slice(0, 20)}... (score: ${r.score.toFixed(2)})${r.description ? ` — ${r.description}` : ""}`,
+				)
+				.join("\n");
+			return {
+				text: `Found ${data.results.length} file(s) in your knowledge graph:\n${summary}`,
+				data,
+			};
+		},
+
+		examples: [
+			[
+				{ user: "user", content: { text: "Find files related to climate research" } },
+				{
+					user: "agent",
+					content: {
+						text: "Found 3 file(s) in your knowledge graph:\n- bafkreihdwdc... (score: 0.92) — Climate dataset 2023",
+						action: "SEARCH_KNOWLEDGE_GRAPH",
+					},
+				},
+			],
+		],
+	};
+}
+
+function createAddToKnowledgeGraphAction(apiUrl: string, f: typeof fetch): Action {
+	return {
+		name: "ADD_TO_KNOWLEDGE_GRAPH",
+		similes: ["INDEX_FILE", "ADD_FILE_TO_GRAPH", "TAG_FILE", "ANNOTATE_FILE"],
+		description: "Add a stored file to the knowledge graph for semantic search and connections",
+
+		validate: async (_runtime: unknown, message: Memory) => {
+			const text = message.content.text?.toLowerCase() ?? "";
+			return (
+				(text.includes("add") || text.includes("index") || text.includes("tag")) &&
+				(text.includes("graph") || text.includes("knowledge") || text.includes("bafk"))
+			);
+		},
+
+		handler: async (_runtime: unknown, message: Memory) => {
+			const text = message.content.text ?? "";
+			const cidMatch = text.match(/bafk[a-z0-9]+/);
+			if (!cidMatch) {
+				return {
+					text: "Please provide a CID to add to the knowledge graph. Example: add bafkrei... to my knowledge graph",
+				};
+			}
+
+			const descriptionMatch = text.match(/description[:\s]+([^,\n]+)/i);
+			const tagsMatch = text.match(/tags?[:\s]+([^\n]+)/i);
+
+			const body: { cid: string; description?: string; tags?: string[] } = { cid: cidMatch[0] };
+			if (descriptionMatch) body.description = descriptionMatch[1].trim();
+			if (tagsMatch) body.tags = tagsMatch[1].split(",").map((t: string) => t.trim());
+
+			const res = await f(`${apiUrl}/graph/files`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!res.ok) {
+				const errBody = await res.text().catch(() => "");
+				throw new Error(`w3stor graph add file failed (${res.status}): ${errBody}`);
+			}
+			const data = await res.json();
+
+			return {
+				text: `Added ${data.cid} to your knowledge graph.${data.description ? ` Description: ${data.description}` : ""}${data.tags?.length ? ` Tags: ${data.tags.join(", ")}` : ""}`,
+				data,
+			};
+		},
+
+		examples: [
+			[
+				{
+					user: "user",
+					content: { text: "Add bafkreihdwdcefgh to my knowledge graph with description: quarterly report" },
+				},
+				{
+					user: "agent",
+					content: {
+						text: "Added bafkreihdwdcefgh... to your knowledge graph. Description: quarterly report",
+						action: "ADD_TO_KNOWLEDGE_GRAPH",
+					},
+				},
+			],
+		],
+	};
+}
+
 // ---- Plugin factory ----
 
 export async function createW3StorPlugin(config?: W3StorConfig): Promise<Plugin> {
@@ -199,7 +320,13 @@ export async function createW3StorPlugin(config?: W3StorConfig): Promise<Plugin>
 	return {
 		name: "w3stor",
 		description: "Decentralized storage via IPFS + Filecoin with x402 micropayments",
-		actions: [createStoreAction(apiUrl, f), createListAction(apiUrl, f), createStatusAction(apiUrl, f)],
+		actions: [
+			createStoreAction(apiUrl, f),
+			createListAction(apiUrl, f),
+			createStatusAction(apiUrl, f),
+			createSearchKnowledgeGraphAction(apiUrl, f),
+			createAddToKnowledgeGraphAction(apiUrl, f),
+		],
 		evaluators: [],
 		providers: [],
 	};
