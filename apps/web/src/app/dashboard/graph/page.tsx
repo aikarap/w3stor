@@ -206,6 +206,38 @@ function buildSiweMessage(address: string, nonce: string): string {
 	].join("\n");
 }
 
+const STORAGE_KEY_PREFIX = "w3stor_siwe_";
+
+function saveToken(wallet: string, token: string): void {
+	try {
+		// JWT has 24h TTL — store expiry as iat + 24h
+		const payload = JSON.parse(atob(token.split(".")[1]));
+		const expiresAt = (payload.exp ?? Math.floor(Date.now() / 1000) + 86400) * 1000;
+		localStorage.setItem(`${STORAGE_KEY_PREFIX}${wallet.toLowerCase()}`, JSON.stringify({ token, expiresAt }));
+	} catch {}
+}
+
+function loadToken(wallet: string): string | null {
+	try {
+		const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${wallet.toLowerCase()}`);
+		if (!raw) return null;
+		const { token, expiresAt } = JSON.parse(raw);
+		if (Date.now() >= expiresAt) {
+			localStorage.removeItem(`${STORAGE_KEY_PREFIX}${wallet.toLowerCase()}`);
+			return null;
+		}
+		return token;
+	} catch {
+		return null;
+	}
+}
+
+function clearToken(wallet: string): void {
+	try {
+		localStorage.removeItem(`${STORAGE_KEY_PREFIX}${wallet.toLowerCase()}`);
+	} catch {}
+}
+
 function GraphClient() {
 	const { address, isConnected } = useAccount();
 	const { signMessageAsync } = useSignMessage();
@@ -223,14 +255,19 @@ function GraphClient() {
 	const [searchResults, setSearchResults] = useState<GraphNode[] | null>(null);
 	const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	// Clear auth when wallet changes
+	// Restore token from localStorage on wallet change
 	useEffect(() => {
-		setAuthToken(null);
 		setAuthError(null);
 		setNodes([]);
 		setEdges([]);
 		setSelectedNode(null);
 		setSearchResults(null);
+		if (address) {
+			const saved = loadToken(address);
+			setAuthToken(saved);
+		} else {
+			setAuthToken(null);
+		}
 	}, [address]);
 
 	const authenticate = useCallback(async () => {
@@ -254,6 +291,7 @@ function GraphClient() {
 			});
 
 			setAuthToken(verifyData.token);
+			if (address) saveToken(address, verifyData.token);
 		} catch (e) {
 			setAuthError(e instanceof Error ? e.message : "Sign-in failed");
 		} finally {
@@ -391,7 +429,7 @@ function GraphClient() {
 					Signed in as <span className="font-mono">{address?.slice(0, 6)}…{address?.slice(-4)}</span>
 					<button
 						type="button"
-						onClick={() => setAuthToken(null)}
+						onClick={() => { setAuthToken(null); if (address) clearToken(address); }}
 						className="ml-1 text-muted-foreground hover:text-foreground transition-colors underline"
 					>
 						Sign out
