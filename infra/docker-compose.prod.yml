@@ -141,6 +141,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -152,8 +155,12 @@ services:
 
 volumes:
   postgres_data:
+    external: true
+    name: w3stor_postgres_data
   redis_data:
   neo4j_data:
+    external: true
+    name: w3stor_neo4j_data
   caddy_data:
   caddy_config:
 

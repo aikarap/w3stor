@@ -25,6 +25,7 @@ interface FilesResponse {
 	page: number;
 	limit: number;
 	hasMore: boolean;
+	replicatedCount: number;
 }
 
 export function useFiles(page = 1, limit = 20) {

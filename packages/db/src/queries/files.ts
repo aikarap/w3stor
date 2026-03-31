@@ -116,10 +116,7 @@ export async function listUserFiles(params: {
 		FROM user_files uf
 		INNER JOIN files f ON f.cid = uf.cid
 		WHERE uf.wallet_address = ${walletAddress}
-		AND (
-			SELECT COUNT(*) FROM file_sp_status fsp
-			WHERE fsp.cid = f.cid AND fsp.status IN ('stored', 'verified', 'tx_confirmed')
-		) >= 3
+		AND f.status = 'fully_replicated'
 	`);
 	const replicatedCount = (replicatedResult[0] as { count: number })?.count ?? 0;
 

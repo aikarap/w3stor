@@ -36,7 +36,7 @@ export default function DashboardFilesPage() {
 	const files = filesData?.files ?? [];
 	const totalFiles = filesData?.total ?? 0;
 	const storageUsed = files.reduce((sum: number, f: any) => sum + (Number(f.size_bytes) || f.size || 0), 0);
-	const replicated = (filesData as any)?.replicatedCount ?? 0;
+	const replicated = filesData?.replicatedCount ?? 0;
 	const conversations = convData?.conversations?.length ?? 0;
 
 	return (

@@ -80,11 +80,8 @@ export async function getPlatformMetrics() {
 			ORDER BY date DESC
 		`),
 		db.execute(sql`
-			SELECT COUNT(*)::int AS count FROM files f
-			WHERE (
-				SELECT COUNT(*) FROM file_sp_status fsp
-				WHERE fsp.cid = f.cid AND fsp.status IN ('stored', 'verified', 'tx_confirmed')
-			) >= 3
+			SELECT COUNT(*)::int AS count FROM files
+			WHERE status = 'fully_replicated'
 		`),
 	]);
 
