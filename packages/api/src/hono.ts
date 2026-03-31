@@ -12,6 +12,7 @@ import { healthRoute } from "./routes/health";
 import { metricsRoute } from "./routes/metrics";
 import { platformRoute } from "./routes/platform";
 import { uploadRoute } from "./routes/upload";
+import { batchUploadRoute } from "./routes/batch-upload";
 import { workflowsRoute } from "./routes/workflows";
 import { graphRoute } from "./routes/graph";
 
@@ -54,6 +55,7 @@ app.route("/", filesRoute);
 app.route("/", conversationsRoute);
 app.route("/", platformRoute);
 app.route("/", uploadRoute);
+app.route("/", batchUploadRoute);
 app.route("/", workflowsRoute);
 app.route("/", attestRoute);
 
