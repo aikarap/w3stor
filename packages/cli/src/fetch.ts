@@ -31,23 +31,27 @@ export function createPaymentFetch(): (
 	// Wrap to handle FormData body re-send on 402 retry.
 	// x402 wrapFetch does: first request (gets 402) → retry with payment header.
 	// But FormData/stream bodies are consumed on the first attempt, so the retry
-	// sends an empty body. Fix: if body is FormData, convert to ArrayBuffer so
-	// it can be re-sent on retry.
+	// sends an empty body. Fix: intercept fetch to re-create FormData on each call.
 	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		if (init?.body instanceof FormData) {
-			const formData = init.body;
-			// Build a new Request to serialize the FormData into a replayable body
-			const tempReq = new Request("http://localhost", { method: "POST", body: formData });
-			const buffer = await tempReq.arrayBuffer();
-			const contentType = tempReq.headers.get("content-type") ?? "";
-			return x402Fetch(input, {
-				...init,
-				body: buffer,
-				headers: {
-					...Object.fromEntries(new Headers(init.headers as HeadersInit).entries()),
-					"content-type": contentType,
-				},
-			});
+			const originalFormData = init.body;
+			// Serialize all FormData entries so we can rebuild it on retry
+			const entries: Array<[string, FormDataEntryValue]> = [];
+			for (const [key, value] of originalFormData.entries()) {
+				entries.push([key, value]);
+			}
+
+			// Override the underlying fetch to rebuild FormData each time
+			const replayableFetch: typeof fetch = async (reqInput, reqInit) => {
+				const freshForm = new FormData();
+				for (const [key, value] of entries) {
+					freshForm.append(key, value);
+				}
+				return fetch(reqInput, { ...reqInit, body: freshForm });
+			};
+
+			const replayableX402Fetch = wrapFetchWithPayment(replayableFetch, client);
+			return replayableX402Fetch(input, { ...init, body: originalFormData });
 		}
 		return x402Fetch(input, init);
 	};
