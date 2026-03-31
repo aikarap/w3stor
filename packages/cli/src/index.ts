@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Cli } from "incur";
 import { registerAttest } from "./commands/attest.ts";
+import { registerAuth } from "./commands/auth.ts";
 import { registerFiles } from "./commands/files.ts";
 import { registerGraph } from "./commands/graph.ts";
 import { registerHealth } from "./commands/health.ts";
@@ -26,6 +27,7 @@ const cli = Cli.create("w3stor", {
 
 // Register all commands
 registerInit(cli);
+registerAuth(cli);
 registerUpload(cli);
 registerFiles(cli);
 registerStatus(cli);

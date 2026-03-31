@@ -1,22 +1,6 @@
 import { type Cli, z } from "incur";
-import type { Hex } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { privateKeyFromConfig } from "../client.ts";
 import { createPaymentFetch, getServerUrl } from "../fetch.ts";
-
-/**
- * Resolve the wallet address from config or env fallback.
- */
-function resolveWallet(): string {
-	try {
-		const pk = privateKeyFromConfig();
-		return privateKeyToAccount(pk as Hex).address.toLowerCase();
-	} catch {
-		const envWallet = process.env.W3STOR_WALLET;
-		if (envWallet) return envWallet.toLowerCase();
-		throw new Error("Wallet not configured. Run `w3stor init` to set up your wallet.");
-	}
-}
+import { siweLogin } from "./auth.ts";
 
 /**
  * Parse a JSON error body and return a human-readable message.
@@ -28,6 +12,19 @@ async function parseErrorMessage(res: Response): Promise<string> {
 		return err.message || err.error || body;
 	} catch {
 		return body;
+	}
+}
+
+/**
+ * Auto-authenticate via SIWE and return a Bearer token string.
+ * Returns `undefined` if the private key is not configured.
+ */
+async function getAuthToken(): Promise<string | undefined> {
+	try {
+		const { token } = await siweLogin();
+		return token;
+	} catch {
+		return undefined;
 	}
 }
 
@@ -169,10 +166,9 @@ export function registerGraph(cli: ReturnType<typeof Cli.create>) {
 			query: z.string().describe("Search query"),
 		}),
 		options: z.object({
-			wallet: z.string().optional().describe("Wallet address (defaults to configured wallet)"),
 			limit: z.number().optional().describe("Maximum results to return"),
 		}),
-		alias: { wallet: "w", limit: "l" },
+		alias: { limit: "l" },
 		output: z.object({
 			results: z.array(
 				z.object({
@@ -197,34 +193,32 @@ export function registerGraph(cli: ReturnType<typeof Cli.create>) {
 		async run(c) {
 			const { query } = c.args;
 
-			let wallet = c.options.wallet;
-			if (!wallet) {
-				try {
-					wallet = resolveWallet();
-				} catch (e) {
-					return c.error({
-						code: "NO_WALLET",
-						message: (e as Error).message,
-						retryable: true,
-						cta: {
-							description: "Set up your wallet first:",
-							commands: [
-								{
-									command: "init",
-									options: { auto: true },
-									description: "Initialize from env var",
-								},
-							],
-						},
-					});
-				}
+			const token = await getAuthToken();
+			if (!token) {
+				return c.error({
+					code: "AUTH_REQUIRED",
+					message: "Authentication failed. Run `w3stor auth login` to sign in.",
+					retryable: true,
+					cta: {
+						description: "Sign in first:",
+						commands: [
+							{
+								command: "auth login",
+								args: {},
+								description: "Authenticate with SIWE",
+							},
+						],
+					},
+				});
 			}
 
 			const serverUrl = getServerUrl();
-			const params = new URLSearchParams({ wallet, q: query });
+			const params = new URLSearchParams({ q: query });
 			if (c.options.limit) params.set("limit", String(c.options.limit));
 
-			const res = await fetch(`${serverUrl}/graph/search?${params}`);
+			const res = await fetch(`${serverUrl}/graph/search?${params}`, {
+				headers: { Authorization: `Bearer ${token}` },
+			});
 
 			if (!res.ok) {
 				return c.error({
@@ -261,10 +255,9 @@ export function registerGraph(cli: ReturnType<typeof Cli.create>) {
 			cid: z.string().describe("Starting file CID"),
 		}),
 		options: z.object({
-			wallet: z.string().optional().describe("Wallet address (defaults to configured wallet)"),
 			depth: z.number().optional().describe("Traversal depth (default: 2)"),
 		}),
-		alias: { wallet: "w", depth: "d" },
+		alias: { depth: "d" },
 		output: z.object({
 			nodes: z.array(
 				z.object({
@@ -295,34 +288,33 @@ export function registerGraph(cli: ReturnType<typeof Cli.create>) {
 		async run(c) {
 			const { cid } = c.args;
 
-			let wallet = c.options.wallet;
-			if (!wallet) {
-				try {
-					wallet = resolveWallet();
-				} catch (e) {
-					return c.error({
-						code: "NO_WALLET",
-						message: (e as Error).message,
-						retryable: true,
-						cta: {
-							description: "Set up your wallet first:",
-							commands: [
-								{
-									command: "init",
-									options: { auto: true },
-									description: "Initialize from env var",
-								},
-							],
-						},
-					});
-				}
+			const token = await getAuthToken();
+			if (!token) {
+				return c.error({
+					code: "AUTH_REQUIRED",
+					message: "Authentication failed. Run `w3stor auth login` to sign in.",
+					retryable: true,
+					cta: {
+						description: "Sign in first:",
+						commands: [
+							{
+								command: "auth login",
+								args: {},
+								description: "Authenticate with SIWE",
+							},
+						],
+					},
+				});
 			}
 
 			const serverUrl = getServerUrl();
-			const params = new URLSearchParams({ wallet });
+			const params = new URLSearchParams();
 			if (c.options.depth) params.set("depth", String(c.options.depth));
 
-			const res = await fetch(`${serverUrl}/graph/traverse/${encodeURIComponent(cid)}?${params}`);
+			const query = params.toString() ? `?${params}` : "";
+			const res = await fetch(`${serverUrl}/graph/traverse/${encodeURIComponent(cid)}${query}`, {
+				headers: { Authorization: `Bearer ${token}` },
+			});
 
 			if (!res.ok) {
 				return c.error({
@@ -359,7 +351,7 @@ export function registerGraph(cli: ReturnType<typeof Cli.create>) {
 
 	// ── graph remove ──────────────────────────────────────────────────────────
 	cli.command("graph remove", {
-		description: "Remove a file from the knowledge graph (x402 payment required)",
+		description: "Remove a file from the knowledge graph",
 		args: z.object({
 			cid: z.string().describe("IPFS CID of the file to remove"),
 		}),
@@ -373,14 +365,34 @@ export function registerGraph(cli: ReturnType<typeof Cli.create>) {
 				description: "Remove a file node from the knowledge graph",
 			},
 		],
-		hint: "Requires USDC on Base Sepolia for x402 payment. This removes the node and all its edges.",
+		hint: "This removes the node and all its edges. Requires SIWE authentication.",
 		async run(c) {
 			const { cid } = c.args;
-			const payFetch = createPaymentFetch();
+
+			const token = await getAuthToken();
+			if (!token) {
+				return c.error({
+					code: "AUTH_REQUIRED",
+					message: "Authentication failed. Run `w3stor auth login` to sign in.",
+					retryable: true,
+					cta: {
+						description: "Sign in first:",
+						commands: [
+							{
+								command: "auth login",
+								args: {},
+								description: "Authenticate with SIWE",
+							},
+						],
+					},
+				});
+			}
+
 			const serverUrl = getServerUrl();
 
-			const res = await payFetch(`${serverUrl}/graph/files/${encodeURIComponent(cid)}`, {
+			const res = await fetch(`${serverUrl}/graph/files/${encodeURIComponent(cid)}`, {
 				method: "DELETE",
+				headers: { Authorization: `Bearer ${token}` },
 			});
 
 			if (!res.ok) {
