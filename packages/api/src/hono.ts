@@ -11,6 +11,7 @@ import { metricsRoute } from "./routes/metrics";
 import { platformRoute } from "./routes/platform";
 import { uploadRoute } from "./routes/upload";
 import { workflowsRoute } from "./routes/workflows";
+import { graphRoute } from "./routes/graph";
 
 const app = new Hono();
 
@@ -31,6 +32,9 @@ app.route("/", metricsRoute);
 app.use("/upload", x402PaymentMiddleware);
 app.use("/workflows/execute", x402PaymentMiddleware);
 app.use("/attest/:cid", x402PaymentMiddleware);
+app.use("/graph/files", x402PaymentMiddleware);
+app.use("/graph/connections", x402PaymentMiddleware);
+app.use("/graph/agents", x402PaymentMiddleware);
 
 // REST routes
 app.route("/", filesRoute);
@@ -39,6 +43,9 @@ app.route("/", platformRoute);
 app.route("/", uploadRoute);
 app.route("/", workflowsRoute);
 app.route("/", attestRoute);
+
+// Graph routes
+app.route("/", graphRoute);
 
 // A2A protocol endpoints
 app.route("/", a2aRoutes);

@@ -90,6 +90,7 @@
       "dependencies": {
         "@a2a-js/sdk": "^0.3.10",
         "@w3stor/db": "workspace:*",
+        "@w3stor/graph": "workspace:*",
         "@w3stor/modules": "workspace:*",
         "@w3stor/sdk": "workspace:*",
         "@w3stor/shared": "workspace:*",
@@ -215,6 +216,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@w3stor/db": "workspace:*",
+        "@w3stor/graph": "workspace:*",
         "@w3stor/modules": "workspace:*",
         "@w3stor/shared": "workspace:*",
         "bullmq": "^5.70.4",
