@@ -52,7 +52,8 @@ export function createPaymentFetch(): (
 				return x402Fetch(input, init);
 			}
 
-			const { x402HTTPClient } = await import("@x402/fetch");
+			const x402FetchModule = await import("@x402/fetch");
+			const x402HTTPClient = (x402FetchModule as any).x402HTTPClient ?? (x402FetchModule as any).default?.x402HTTPClient;
 			const httpClient = new x402HTTPClient(client);
 
 			// Step 1: Get 402 challenge via curl (bypasses Bun's HTTP client)
@@ -80,15 +81,15 @@ export function createPaymentFetch(): (
 					url,
 				]);
 				unlinkSync(tmpFile);
-				return new Response(curlDirect.stdout, { status: 200 });
+				return new Response(curlDirect.stdout.toString(), { status: 200 });
 			}
 
 			// Step 2: Parse 402 and sign payment
 			const paymentRequiredHeader = paymentRequiredMatch[1].trim();
 			const payReq = httpClient.getPaymentRequiredResponse(
-				(name) => name.toLowerCase() === "payment-required" ? paymentRequiredHeader : null,
+				(name: string) => name.toLowerCase() === "payment-required" ? paymentRequiredHeader : null,
 			);
-			const payPayload = await client.createPaymentPayload(payReq);
+			const payPayload = await (client as any).createPaymentPayload(payReq);
 			const payHeaders = httpClient.encodePaymentSignatureHeader(payPayload);
 
 			// Step 3: Send real request via curl with payment header

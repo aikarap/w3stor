@@ -14,28 +14,15 @@ export function registerBatchUpload(cli: ReturnType<typeof Cli.create>) {
 		}),
 		alias: { metadata: "m" },
 		output: z.object({
-			files: z.array(z.any()),
-			connections: z.array(z.any()),
+			files: z.array(z.object({ cid: z.string().optional() }).passthrough()),
+			connections: z.array(z.object({ success: z.boolean().optional() }).passthrough()),
 			total: z.number(),
 			totalConnections: z.number(),
 		}),
 		examples: [
 			{
-				args: { files: ["a.csv", "b.csv"] },
-				options: {
-					metadata: JSON.stringify({
-						files: [
-							{ index: 0, description: "File A", tags: ["data"], connections: [] },
-							{
-								index: 1,
-								description: "File B",
-								tags: ["data"],
-								connections: [{ toIndex: 0, relationship: "references" }],
-							},
-						],
-					}),
-				},
-				description: "Upload two files and connect them",
+				args: { files: "a.csv,b.csv" },
+				description: "Upload two files with default metadata",
 			},
 		],
 		hint: "Pass file metadata and connections as JSON via --metadata. Each file entry uses index (0-based) matching the order of file arguments. Connections can reference other files by toIndex or existing CIDs by toCid.",
