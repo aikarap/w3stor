@@ -2,6 +2,7 @@
 import { Cli } from "incur";
 import { registerAttest } from "./commands/attest.ts";
 import { registerFiles } from "./commands/files.ts";
+import { registerGraph } from "./commands/graph.ts";
 import { registerHealth } from "./commands/health.ts";
 import { registerInit } from "./commands/init.ts";
 import { registerStatus } from "./commands/status.ts";
@@ -29,6 +30,7 @@ registerUpload(cli);
 registerFiles(cli);
 registerStatus(cli);
 registerAttest(cli);
+registerGraph(cli);
 registerHealth(cli);
 cli.command(wallet);
 
