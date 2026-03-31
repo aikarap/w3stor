@@ -29,10 +29,9 @@ PRIVATE_KEY=0x... w3stor init --auto
 
 # From a Foundry cast keystore
 w3stor init --keystore ~/.foundry/keystores/default
-
-# Custom server URL (default: https://api.w3stor.xyz)
-w3stor init --serverUrl https://api.w3stor.xyz
 ```
+
+The CLI always connects to `https://api.w3stor.xyz` — no server URL configuration needed.
 
 ## File Size Limits
 
@@ -62,6 +61,7 @@ All paid operations use x402 micropayments (USDC on Base Sepolia). No accounts o
 | `w3stor init` | Configure wallet and server connection | No |
 | `w3stor health` | Check server + service health | No |
 | `w3stor upload <file>` | Upload a file to IPFS + Filecoin | Yes |
+| `w3stor batch <files>` | Batch upload with graph connections | Yes |
 | `w3stor files` | List uploaded files | No |
 | `w3stor status <cid>` | Check replication across SPs | No |
 | `w3stor attest <cid>` | Get cryptographic storage attestation | Yes |
@@ -204,9 +204,29 @@ w3stor graph connect bafkreiA bafkreiB --rel "trained_on"
 w3stor graph search "transformer training data"
 ```
 
-### Batch Upload (SDK / API)
+### Batch Upload
 
-Upload multiple files with graph connections in a single x402 payment via `POST /upload/batch`. Supports up to 10 files (100MB total) with up to 50 connections per batch. Files can reference each other by index or existing CIDs.
+Upload multiple files with graph connections in a single x402 payment. Supports up to 10 files (100MB total) with up to 50 connections per batch. Files can reference each other by index or existing CIDs.
+
+```sh
+# Upload two files with metadata and connections
+w3stor batch "file1.csv,file2.csv" --metadata '{
+  "files": [
+    {
+      "index": 0,
+      "description": "First dataset",
+      "tags": ["data", "ml"],
+      "connections": [{"toIndex": 1, "relationship": "related_to"}]
+    },
+    {
+      "index": 1,
+      "description": "Second dataset",
+      "tags": ["data", "ml"],
+      "connections": [{"toCid": "bafkrei...", "relationship": "derived_from"}]
+    }
+  ]
+}'
+```
 
 ### Research Swarm Workflow
 
@@ -225,7 +245,6 @@ w3stor graph traverse bafkreiSynthesis --depth 2
 
 ## Requirements
 
-- [Bun](https://bun.sh) runtime
-- Running server (`bun run dev`) with PostgreSQL, Redis, Neo4j, and Pinata configured
-- USDC on Base Sepolia for `upload`, `attest`, `graph add`, and `graph connect` commands
-- OpenAI API key for semantic embeddings (graph search)
+- Node.js 18+ or [Bun](https://bun.sh) runtime
+- USDC on Base Sepolia for `upload`, `batch`, `attest`, `graph add`, and `graph connect` commands
+- The CLI connects to the hosted API at `https://api.w3stor.xyz` — no local server setup needed

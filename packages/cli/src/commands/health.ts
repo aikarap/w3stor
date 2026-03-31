@@ -29,9 +29,8 @@ export function registerHealth(cli: ReturnType<typeof Cli.create>) {
 						description: "Troubleshoot:",
 						commands: [
 							{
-								command: "init",
-								options: { serverUrl: "http://localhost:4000" },
-								description: "Update server URL",
+								command: "health",
+								description: "Retry the health check",
 							},
 						],
 					},

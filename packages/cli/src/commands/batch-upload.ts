@@ -4,7 +4,7 @@ import { type Cli, z } from "incur";
 import { createPaymentFetch, getServerUrl } from "../fetch.ts";
 
 export function registerBatchUpload(cli: ReturnType<typeof Cli.create>) {
-	cli.command("upload batch", {
+	cli.command("batch", {
 		description: "Upload multiple files with graph connections in one operation (x402 payment required)",
 		args: z.object({
 			files: z.string().describe("Comma-separated paths to files to upload"),

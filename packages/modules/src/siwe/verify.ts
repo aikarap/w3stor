@@ -9,10 +9,9 @@ export async function verifySiweMessage(
   try {
     const siweMessage = new SiweMessage(message);
 
-    // Domain check: allow port variations (e.g., "localhost:3000" matches "localhost")
-    const messageDomain = siweMessage.domain.split(":")[0];
-    const configDomain = config.siwe.domain.split(":")[0];
-    if (messageDomain !== configDomain) {
+    // Domain check: strip port and www prefix for flexible matching
+    const normalize = (d: string) => d.split(":")[0].replace(/^www\./, "");
+    if (normalize(siweMessage.domain) !== normalize(config.siwe.domain)) {
       return { error: "Authentication failed" };
     }
 

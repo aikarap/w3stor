@@ -2,6 +2,7 @@ import { type Cli, z } from "incur";
 import type { Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { privateKeyFromConfig } from "../client.ts";
+import { AUTH_DOMAIN } from "../config.ts";
 import { getServerUrl } from "../fetch.ts";
 
 /**
@@ -21,11 +22,10 @@ export async function siweLogin(): Promise<{ token: string; address: string }> {
 	}
 	const { nonce } = (await nonceRes.json()) as { nonce: string };
 
-	// 2. Construct SIWE message — domain must match server's SIWE_DOMAIN config
-	const domain = new URL(serverUrl).hostname;
+	// 2. Construct SIWE message — domain must match server's SIWE_DOMAIN (w3stor.xyz)
 	const issuedAt = new Date().toISOString();
 	const message = [
-		`${domain} wants you to sign in with your Ethereum account:`,
+		`${AUTH_DOMAIN} wants you to sign in with your Ethereum account:`,
 		address,
 		"",
 		"Sign in to W3Stor",

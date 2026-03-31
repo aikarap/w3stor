@@ -1,5 +1,8 @@
 import Conf from "conf";
 
+const API_URL = "https://api.w3stor.xyz";
+const AUTH_DOMAIN = "w3stor.xyz";
+
 const schema = {
 	keystore: {
 		type: "string" as const,
@@ -7,16 +10,13 @@ const schema = {
 	privateKey: {
 		type: "string" as const,
 	},
-	serverUrl: {
-		type: "string" as const,
-		default: "http://localhost:4000",
-	},
 };
+
+export { API_URL, AUTH_DOMAIN };
 
 const config = new Conf<{
 	privateKey: string;
 	keystore: string;
-	serverUrl: string;
 }>({
 	projectName: "w3stor",
 	projectVersion: "1.0.0",

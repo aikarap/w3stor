@@ -7,13 +7,11 @@ export function registerInit(cli: ReturnType<typeof Cli.create>) {
 		options: z.object({
 			privateKey: z.string().optional().describe("EVM private key (hex, 0x-prefixed)"),
 			keystore: z.string().optional().describe("Path to cast keystore file"),
-			serverUrl: z.string().optional().describe("Web3 Storage Agent server URL"),
 			auto: z.boolean().optional().describe("Use environment variable PRIVATE_KEY if set"),
 		}),
-		alias: { privateKey: "k", keystore: "K", serverUrl: "s" },
+		alias: { privateKey: "k", keystore: "K" },
 		output: z.object({
 			configured: z.boolean(),
-			serverUrl: z.string(),
 			wallet: z.string().optional(),
 		}),
 		examples: [
@@ -32,7 +30,7 @@ export function registerInit(cli: ReturnType<typeof Cli.create>) {
 		],
 		hint: "Your private key is stored locally in an encrypted config file managed by the `conf` package. It never leaves your machine.",
 		run(c) {
-			const { privateKey, keystore, serverUrl, auto } = c.options;
+			const { privateKey, keystore, auto } = c.options;
 
 			if (auto) {
 				const envKey = process.env.PRIVATE_KEY;
@@ -95,10 +93,6 @@ export function registerInit(cli: ReturnType<typeof Cli.create>) {
 				});
 			}
 
-			if (serverUrl) {
-				config.set("serverUrl", serverUrl);
-			}
-
 			// Derive wallet address for confirmation
 			let wallet: string | undefined;
 			try {
@@ -111,10 +105,8 @@ export function registerInit(cli: ReturnType<typeof Cli.create>) {
 				// keystore mode — can't derive without password prompt
 			}
 
-			const currentUrl = config.get("serverUrl") || "http://localhost:4000";
-
 			return c.ok(
-				{ configured: true, serverUrl: currentUrl, wallet },
+				{ configured: true, wallet },
 				{
 					cta: {
 						description: "You're ready! Try:",

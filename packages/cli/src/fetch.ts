@@ -5,7 +5,7 @@ import { createPublicClient, type Hex, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 import { privateKeyFromConfig } from "./client.ts";
-import config from "./config.ts";
+import { API_URL } from "./config.ts";
 
 /**
  * Creates a fetch function that automatically handles x402 payment challenges.
@@ -61,8 +61,9 @@ export function createPaymentFetch(): (
 			const tmpFile = `/tmp/w3stor-upload-${Date.now()}.bin`;
 			writeFileSync(tmpFile, realBody);
 
-			const curlProbe = Bun.spawnSync([
-				"curl", "-s", "-D", "-", "-o", "/dev/null",
+			const { spawnSync } = await import("node:child_process");
+			const curlProbe = spawnSync("curl", [
+				"-s", "-D", "-", "-o", "/dev/null",
 				"-X", "POST",
 				"-H", `Content-Type: ${realContentType}`,
 				"--data-binary", `@${tmpFile}`,
@@ -73,8 +74,8 @@ export function createPaymentFetch(): (
 
 			if (!paymentRequiredMatch) {
 				// No 402 challenge — try sending directly
-				const curlDirect = Bun.spawnSync([
-					"curl", "-s",
+				const curlDirect = spawnSync("curl", [
+					"-s",
 					"-X", "POST",
 					"-H", `Content-Type: ${realContentType}`,
 					"--data-binary", `@${tmpFile}`,
@@ -108,7 +109,7 @@ export function createPaymentFetch(): (
 			}
 			curlArgs.push("--data-binary", `@${tmpFile}`, url);
 
-			const curlResult = Bun.spawnSync(curlArgs);
+			const curlResult = spawnSync(curlArgs[0], curlArgs.slice(1));
 			unlinkSync(tmpFile);
 
 			const output = curlResult.stdout.toString();
@@ -127,8 +128,8 @@ export function createPaymentFetch(): (
 }
 
 /**
- * Returns the server base URL from config.
+ * Returns the server base URL (hardcoded to production).
  */
 export function getServerUrl(): string {
-	return config.get("serverUrl") || "http://localhost:4000";
+	return API_URL;
 }
