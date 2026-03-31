@@ -65,6 +65,12 @@ interface Config {
 	embedding: {
 		model: string;
 	};
+	siwe: {
+		jwtSecret: string;
+		domain: string;
+		nonceExpiryMs: number;
+		tokenExpirySeconds: number;
+	};
 }
 
 export interface X402NetworkConfig {
@@ -197,6 +203,12 @@ export const config: Config = {
 	},
 	embedding: {
 		model: getOptionalEnv("EMBEDDING_MODEL", "text-embedding-3-small") || "text-embedding-3-small",
+	},
+	siwe: {
+		jwtSecret: getOptionalEnv("SIWE_JWT_SECRET", "dev-jwt-secret-change-in-production") || "dev-jwt-secret-change-in-production",
+		domain: getOptionalEnv("SIWE_DOMAIN", "w3stor.xyz") || "w3stor.xyz",
+		nonceExpiryMs: 5 * 60 * 1000,
+		tokenExpirySeconds: 24 * 60 * 60,
 	},
 };
 

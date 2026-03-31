@@ -87,3 +87,9 @@ export class GraphError extends AppError {
     super(message, 500, context);
   }
 }
+
+export class AuthError extends AppError {
+  constructor(message: string, context?: Record<string, unknown>) {
+    super(message, 401, context);
+  }
+}
