@@ -26,7 +26,31 @@ export function createPaymentFetch(): (
 	const client = new x402Client();
 	client.register("eip155:*", new ExactEvmScheme(toClientEvmSigner(account, publicClient)));
 
-	return wrapFetchWithPayment(fetch, client);
+	const x402Fetch = wrapFetchWithPayment(fetch, client);
+
+	// Wrap to handle FormData body re-send on 402 retry.
+	// x402 wrapFetch does: first request (gets 402) → retry with payment header.
+	// But FormData/stream bodies are consumed on the first attempt, so the retry
+	// sends an empty body. Fix: if body is FormData, convert to ArrayBuffer so
+	// it can be re-sent on retry.
+	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+		if (init?.body instanceof FormData) {
+			const formData = init.body;
+			// Build a new Request to serialize the FormData into a replayable body
+			const tempReq = new Request("http://localhost", { method: "POST", body: formData });
+			const buffer = await tempReq.arrayBuffer();
+			const contentType = tempReq.headers.get("content-type") ?? "";
+			return x402Fetch(input, {
+				...init,
+				body: buffer,
+				headers: {
+					...Object.fromEntries(new Headers(init.headers as HeadersInit).entries()),
+					"content-type": contentType,
+				},
+			});
+		}
+		return x402Fetch(input, init);
+	};
 }
 
 /**

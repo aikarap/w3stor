@@ -188,6 +188,7 @@ export const x402PaymentMiddleware = createMiddleware(async (c: Context, next: N
 	}
 
 	if (result.type === "payment-error") {
+		logger.warn("x402: payment error", { status: result.response.status, body: result.response.body, path: requestContext.path });
 		// Return the 402 response with payment requirements headers
 		const { status, headers: respHeaders, body, isHtml } = result.response;
 		const headerInit: Record<string, string> = {};
