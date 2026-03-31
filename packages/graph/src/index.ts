@@ -42,4 +42,4 @@ export { combinedSearch, type CombinedSearchInputType } from "./queries/combined
 export { getGraph } from "./queries/get-graph";
 
 // Stats
-export { getTotalGraphNodes } from "./queries/stats";
+export { getTotalGraphNodes, getTotalMemoryGraphs } from "./queries/stats";

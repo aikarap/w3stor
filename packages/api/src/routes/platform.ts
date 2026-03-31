@@ -1,5 +1,5 @@
 import { getPlatformMetrics, listAllFiles } from "@w3stor/db";
-import { getTotalGraphNodes } from "@w3stor/graph";
+import { getTotalGraphNodes, getTotalMemoryGraphs } from "@w3stor/graph";
 import { logger } from "@w3stor/shared";
 import { Hono } from "hono";
 
@@ -21,7 +21,7 @@ platformRoute.get("/platform/activity", async (c) => {
 
 /** GET /platform/metrics */
 platformRoute.get("/platform/metrics", async (c) => {
-	const [metrics, graphNodes] = await Promise.all([
+	const [metrics, graphNodes, memoryGraphs] = await Promise.all([
 		getPlatformMetrics(),
 		getTotalGraphNodes().catch((err) => {
 			logger.warn("Failed to get graph node count", {
@@ -29,6 +29,12 @@ platformRoute.get("/platform/metrics", async (c) => {
 			});
 			return 0;
 		}),
+		getTotalMemoryGraphs().catch((err) => {
+			logger.warn("Failed to get memory graph count", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+			return 0;
+		}),
 	]);
-	return c.json({ ...metrics, graphNodes });
+	return c.json({ ...metrics, graphNodes, memoryGraphs });
 });

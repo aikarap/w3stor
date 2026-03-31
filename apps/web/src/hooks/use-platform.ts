@@ -12,10 +12,12 @@ export function usePlatformStats() {
 	});
 }
 
-export function usePlatformActivity() {
+export function usePlatformActivity(page = 1, limit = 50) {
 	return useQuery({
-		queryKey: queryKeys.platform.activity(),
-		queryFn: () => apiFetch<any>("/platform/activity"),
+		queryKey: [...queryKeys.platform.activity(), page, limit],
+		queryFn: () => apiFetch<any>("/platform/activity", {
+			query: { page: String(page), limit: String(limit) },
+		}),
 		staleTime: 15_000,
 	});
 }

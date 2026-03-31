@@ -1,9 +1,11 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { MetricsCard } from "@/components/dashboard/metrics-card";
 import { StorageChart } from "@/components/dashboard/storage-chart";
 import { FileTable } from "@/components/files/file-table";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SpotlightGrid } from "@/components/ui/spotlight-grid";
 import { usePlatformEvents } from "@/hooks/use-file-events";
@@ -12,7 +14,9 @@ import { cn } from "@/lib/utils";
 
 export default function AgentActivityPage() {
 	const [tab, setTab] = useState<"activity" | "volume">("activity");
-	const { data: activity, isLoading } = usePlatformActivity();
+	const [page, setPage] = useState(1);
+	const limit = 50;
+	const { data: activity, isLoading } = usePlatformActivity(page, limit);
 	const { data: metrics, isLoading: metricsLoading } = usePlatformMetrics();
 	usePlatformEvents();
 
@@ -27,8 +31,8 @@ export default function AgentActivityPage() {
 
 	const totalFiles = metrics?.files?.total ?? 0;
 	const storageUsed = metrics?.files?.total_bytes ?? 0;
-	const fullyReplicated = files.filter((f: any) => Number(f.sp_count) >= 3).length;
-	const graphNodes = metrics?.graphNodes ?? 0;
+	const fullyReplicated = metrics?.replicatedCount ?? 0;
+	const memoryGraphs = metrics?.memoryGraphs ?? 0;
 
 	const chartData = (metrics?.uploadVolume ?? []).map((d: any) => ({
 		...d,
@@ -53,7 +57,7 @@ export default function AgentActivityPage() {
 					<MetricsCard data-spotlight-card title="Total Files" value={totalFiles} color="blue" />
 					<MetricsCard data-spotlight-card title="Storage Used" value={storageUsed} format="bytes" color="green" />
 					<MetricsCard data-spotlight-card title="Fully Replicated" value={fullyReplicated} color="purple" />
-					<MetricsCard data-spotlight-card title="Graphs Created" value={graphNodes} color="orange" />
+					<MetricsCard data-spotlight-card title="Memory Graphs" value={memoryGraphs} color="orange" />
 				</SpotlightGrid>
 			)}
 
@@ -81,7 +85,18 @@ export default function AgentActivityPage() {
 					isLoading ? (
 						<Skeleton className="h-64 rounded-xl" />
 					) : (
-						<FileTable files={files} variant="agent-activity" />
+						<>
+							<FileTable files={files} variant="agent-activity" />
+							<div className="flex items-center justify-between mt-4">
+								<Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+									<ChevronLeft className="mr-1 h-4 w-4" /> Previous
+								</Button>
+								<span className="text-sm text-muted-foreground">Page {page}</span>
+								<Button variant="outline" size="sm" disabled={!activity?.hasMore} onClick={() => setPage((p) => p + 1)}>
+									Next <ChevronRight className="ml-1 h-4 w-4" />
+								</Button>
+							</div>
+						</>
 					)
 				) : (
 					<StorageChart data={chartData} />

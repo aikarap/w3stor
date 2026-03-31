@@ -12,3 +12,16 @@ export async function getTotalGraphNodes(): Promise<number> {
 		await session.close();
 	}
 }
+
+export async function getTotalMemoryGraphs(): Promise<number> {
+	const driver = getNeo4jDriver();
+	const session = driver.session({ database: "neo4j" });
+
+	try {
+		const result = await session.run("MATCH (a:Agent) RETURN count(a) AS total");
+		const record = result.records[0];
+		return record ? record.get("total").toNumber?.() ?? Number(record.get("total")) : 0;
+	} finally {
+		await session.close();
+	}
+}

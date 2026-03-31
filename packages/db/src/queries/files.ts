@@ -111,7 +111,19 @@ export async function listUserFiles(params: {
 	const total = rows.length > 0 ? Number(rows[0].total) : 0;
 	const fileList = rows.map(({ total: _, ...row }) => row);
 
-	return { files: fileList, total };
+	const replicatedResult = await db.execute(sql`
+		SELECT COUNT(*)::int AS count
+		FROM user_files uf
+		INNER JOIN files f ON f.cid = uf.cid
+		WHERE uf.wallet_address = ${walletAddress}
+		AND (
+			SELECT COUNT(*) FROM file_sp_status fsp
+			WHERE fsp.cid = f.cid AND fsp.status IN ('stored', 'verified', 'tx_confirmed')
+		) >= 3
+	`);
+	const replicatedCount = (replicatedResult[0] as { count: number })?.count ?? 0;
+
+	return { files: fileList, total, replicatedCount };
 }
 
 export async function updateFileStatus(cid: string, status: string) {

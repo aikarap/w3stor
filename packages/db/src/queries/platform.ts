@@ -40,7 +40,7 @@ export async function listAllFiles(params: { page?: number; limit?: number }) {
 export async function getPlatformMetrics() {
 	const db = getDatabase();
 
-	const [usersResult, filesResult, spResult, convResult, volumeResult] = await Promise.all([
+	const [usersResult, filesResult, spResult, convResult, volumeResult, replicatedResult] = await Promise.all([
 		db.execute(sql`
 			SELECT
 				COUNT(*)::int AS total,
@@ -79,6 +79,13 @@ export async function getPlatformMetrics() {
 			GROUP BY DATE(created_at)
 			ORDER BY date DESC
 		`),
+		db.execute(sql`
+			SELECT COUNT(*)::int AS count FROM files f
+			WHERE (
+				SELECT COUNT(*) FROM file_sp_status fsp
+				WHERE fsp.cid = f.cid AND fsp.status IN ('stored', 'verified', 'tx_confirmed')
+			) >= 3
+		`),
 	]);
 
 	return {
@@ -87,5 +94,6 @@ export async function getPlatformMetrics() {
 		storageProviders: spResult,
 		conversations: convResult[0] ?? { total: 0, active: 0 },
 		uploadVolume: volumeResult,
+		replicatedCount: (replicatedResult[0] as { count: number })?.count ?? 0,
 	};
 }

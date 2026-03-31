@@ -25,7 +25,7 @@ filesRoute.get("/files", async (c) => {
 		search,
 	});
 
-	return c.json({ ...result, page, limit, hasMore: result.total > page * limit });
+	return c.json({ ...result, page, limit, hasMore: result.total > page * limit, replicatedCount: result.replicatedCount });
 });
 
 /** GET /status/:cid */

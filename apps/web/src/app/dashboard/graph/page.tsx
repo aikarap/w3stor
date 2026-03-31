@@ -385,7 +385,7 @@ function GraphClient() {
 		return (
 			<div className="flex flex-col items-center justify-center gap-6 py-24">
 				<Network className="h-12 w-12 text-[#6c63ff] opacity-60" />
-				<h2 className="text-xl font-semibold">Connect to explore your Knowledge Graph</h2>
+				<h2 className="text-xl font-semibold">Connect to explore your Memory Graph</h2>
 				<p className="text-muted-foreground text-center max-w-md text-sm">
 					Connect a wallet to visualize how your files and agent activity are interconnected across Filecoin.
 				</p>
@@ -399,7 +399,7 @@ function GraphClient() {
 		return (
 			<div className="flex flex-col items-center justify-center gap-6 py-24">
 				<Network className="h-12 w-12 text-[#6c63ff] opacity-60" />
-				<h2 className="text-xl font-semibold">Sign in to view your Knowledge Graph</h2>
+				<h2 className="text-xl font-semibold">Sign in to view your Memory Graph</h2>
 				<p className="text-muted-foreground text-center max-w-md text-sm">
 					Sign a message with your wallet to authenticate and load your graph data.
 				</p>
@@ -521,7 +521,7 @@ export default function KnowledgeGraphPage() {
 			<div>
 				<h2 className="text-lg font-semibold flex items-center gap-2">
 					<Network className="h-5 w-5 text-[#6c63ff]" />
-					Knowledge Graph
+					Memory Graph
 				</h2>
 				<p className="text-sm text-muted-foreground mt-1">
 					Explore the semantic relationships between your files and agent activity stored on Filecoin. Drag nodes to
