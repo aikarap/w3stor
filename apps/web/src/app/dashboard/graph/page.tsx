@@ -1,9 +1,8 @@
 "use client";
 
-import { Network, Search, X, ExternalLink, FileText, HardDrive, Clock } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { Network, Search, X, ExternalLink, FileText, HardDrive, Clock, LogIn } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useSignMessage } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ForceGraph } from "./force-graph";
 import type { GraphNode, GraphEdge } from "./force-graph";
@@ -131,12 +130,29 @@ function GraphLegend() {
 	);
 }
 
+function buildSiweMessage(address: string, nonce: string): string {
+	return [
+		"w3stor.xyz wants you to sign in with your Ethereum account:",
+		address,
+		"",
+		"Sign in to W3Stor",
+		"",
+		"URI: https://w3stor.xyz",
+		"Version: 1",
+		"Chain ID: 84532",
+		`Nonce: ${nonce}`,
+		`Issued At: ${new Date().toISOString()}`,
+	].join("\n");
+}
+
 function GraphClient() {
 	const { address, isConnected } = useAccount();
-	const searchParams = useSearchParams();
+	const { signMessageAsync } = useSignMessage();
 
-	const [walletInput, setWalletInput] = useState<string>(searchParams.get("wallet") ?? "");
-	const [activeWallet, setActiveWallet] = useState<string>(searchParams.get("wallet") ?? "");
+	const [authToken, setAuthToken] = useState<string | null>(null);
+	const [authLoading, setAuthLoading] = useState(false);
+	const [authError, setAuthError] = useState<string | null>(null);
+
 	const [searchQuery, setSearchQuery] = useState("");
 	const [nodes, setNodes] = useState<GraphNode[]>([]);
 	const [edges, setEdges] = useState<GraphEdge[]>([]);
@@ -146,17 +162,47 @@ function GraphClient() {
 	const [searchResults, setSearchResults] = useState<GraphNode[] | null>(null);
 	const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	// Auto-populate wallet from connected account
+	// Clear auth when wallet changes
 	useEffect(() => {
-		if (address && !activeWallet) {
-			setWalletInput(address);
-			setActiveWallet(address);
-		}
-	}, [address, activeWallet]);
+		setAuthToken(null);
+		setAuthError(null);
+		setNodes([]);
+		setEdges([]);
+		setSelectedNode(null);
+		setSearchResults(null);
+	}, [address]);
 
-	// Fetch graph when activeWallet changes
+	const authenticate = useCallback(async () => {
+		if (!address) return;
+		setAuthLoading(true);
+		setAuthError(null);
+		try {
+			// 1. Get nonce
+			const nonceData = await apiFetch<{ nonce: string }>("/auth/siwe/nonce");
+			const nonce = nonceData.nonce;
+
+			// 2. Build + sign SIWE message
+			const message = buildSiweMessage(address, nonce);
+			const signature = await signMessageAsync({ message });
+
+			// 3. Verify with server
+			const verifyData = await apiFetch<{ token: string }>("/auth/siwe/verify", {
+				method: "POST",
+				body: JSON.stringify({ message, signature }),
+				headers: { "Content-Type": "application/json" },
+			});
+
+			setAuthToken(verifyData.token);
+		} catch (e) {
+			setAuthError(e instanceof Error ? e.message : "Sign-in failed");
+		} finally {
+			setAuthLoading(false);
+		}
+	}, [address, signMessageAsync]);
+
+	// Fetch graph when authToken is available
 	useEffect(() => {
-		if (!activeWallet) {
+		if (!authToken) {
 			setNodes([]);
 			setEdges([]);
 			return;
@@ -168,7 +214,9 @@ function GraphClient() {
 		setSelectedNode(null);
 		setSearchResults(null);
 
-		apiFetch<GraphViewResponse>("/graph/view", { query: { wallet: activeWallet } })
+		apiFetch<GraphViewResponse>("/graph/view", {
+			headers: { Authorization: `Bearer ${authToken}` },
+		})
 			.then((data) => {
 				if (cancelled) return;
 				setNodes(data.nodes ?? []);
@@ -185,11 +233,11 @@ function GraphClient() {
 		return () => {
 			cancelled = true;
 		};
-	}, [activeWallet]);
+	}, [authToken]);
 
 	// Debounced semantic search
 	useEffect(() => {
-		if (!searchQuery.trim() || !activeWallet) {
+		if (!searchQuery.trim() || !authToken) {
 			setSearchResults(null);
 			return;
 		}
@@ -198,7 +246,8 @@ function GraphClient() {
 
 		searchTimer.current = setTimeout(() => {
 			apiFetch<SearchResponse>("/graph/search", {
-				query: { wallet: activeWallet, q: searchQuery },
+				query: { q: searchQuery },
+				headers: { Authorization: `Bearer ${authToken}` },
 			})
 				.then((data) => {
 					setSearchResults(data.results ?? []);
@@ -211,15 +260,7 @@ function GraphClient() {
 		return () => {
 			if (searchTimer.current) clearTimeout(searchTimer.current);
 		};
-	}, [searchQuery, activeWallet]);
-
-	const handleWalletSubmit = useCallback(
-		(e: React.FormEvent) => {
-			e.preventDefault();
-			setActiveWallet(walletInput.trim());
-		},
-		[walletInput],
-	);
+	}, [searchQuery, authToken]);
 
 	const handleSearchResultClick = useCallback(
 		(node: GraphNode) => {
@@ -243,28 +284,47 @@ function GraphClient() {
 		);
 	}
 
+	// Wallet connected but not authenticated
+	if (!authToken) {
+		return (
+			<div className="flex flex-col items-center justify-center gap-6 py-24">
+				<Network className="h-12 w-12 text-[#6c63ff] opacity-60" />
+				<h2 className="text-xl font-semibold">Sign in to view your Knowledge Graph</h2>
+				<p className="text-muted-foreground text-center max-w-md text-sm">
+					Sign a message with your wallet to authenticate and load your graph data.
+				</p>
+				{authError && (
+					<p className="text-sm text-red-400 max-w-md text-center">{authError}</p>
+				)}
+				<button
+					type="button"
+					onClick={authenticate}
+					disabled={authLoading}
+					className="flex items-center gap-2 h-10 px-5 rounded-lg bg-[#6c63ff] text-white text-sm font-medium hover:bg-[#5b53ee] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+				>
+					<LogIn className="h-4 w-4" />
+					{authLoading ? "Signing in…" : "Sign In with Ethereum"}
+				</button>
+			</div>
+		);
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
 			{/* Controls row */}
 			<div className="flex flex-wrap items-end gap-3">
-				{/* Wallet form */}
-				<form onSubmit={handleWalletSubmit} className="flex gap-2 items-center">
-					<div className="relative">
-						<input
-							type="text"
-							value={walletInput}
-							onChange={(e) => setWalletInput(e.target.value)}
-							placeholder="0x... wallet address"
-							className="h-9 w-72 rounded-lg border border-border/60 bg-card px-3 text-xs font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#6c63ff]/50"
-						/>
-					</div>
+				{/* Authenticated badge */}
+				<div className="flex items-center gap-2 text-xs text-muted-foreground">
+					<span className="inline-block w-2 h-2 rounded-full bg-[#2ecc71]" />
+					Signed in as <span className="font-mono">{address?.slice(0, 6)}…{address?.slice(-4)}</span>
 					<button
-						type="submit"
-						className="h-9 px-4 rounded-lg bg-[#6c63ff] text-white text-xs font-medium hover:bg-[#5b53ee] transition-colors"
+						type="button"
+						onClick={() => setAuthToken(null)}
+						className="ml-1 text-muted-foreground hover:text-foreground transition-colors underline"
 					>
-						Load Graph
+						Sign out
 					</button>
-				</form>
+				</div>
 
 				{/* Search bar */}
 				<div className="relative flex-1 min-w-[220px]">
@@ -323,7 +383,7 @@ function GraphClient() {
 								<p className="text-sm text-red-400 mb-2">{error}</p>
 								<button
 									type="button"
-									onClick={() => setActiveWallet((w) => w)}
+									onClick={() => setAuthToken((t) => t)}
 									className="text-xs text-[#6c63ff] hover:underline"
 								>
 									Retry
@@ -331,14 +391,9 @@ function GraphClient() {
 							</div>
 						</div>
 					)}
-					{!loading && !error && nodes.length === 0 && activeWallet && (
+					{!loading && !error && nodes.length === 0 && authToken && (
 						<div className="absolute inset-0 flex items-center justify-center">
 							<p className="text-sm text-muted-foreground">No graph data found for this wallet.</p>
-						</div>
-					)}
-					{!loading && !error && !activeWallet && (
-						<div className="absolute inset-0 flex items-center justify-center">
-							<p className="text-sm text-muted-foreground">Enter a wallet address to load the graph.</p>
 						</div>
 					)}
 					<ForceGraph nodes={nodes} edges={edges} onNodeClick={setSelectedNode} />
