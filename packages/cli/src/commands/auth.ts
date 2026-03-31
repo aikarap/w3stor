@@ -21,15 +21,16 @@ export async function siweLogin(): Promise<{ token: string; address: string }> {
 	}
 	const { nonce } = (await nonceRes.json()) as { nonce: string };
 
-	// 2. Construct SIWE message
+	// 2. Construct SIWE message — domain must match server's SIWE_DOMAIN config
+	const domain = new URL(serverUrl).hostname;
 	const issuedAt = new Date().toISOString();
 	const message = [
-		"w3stor.xyz wants you to sign in with your Ethereum account:",
+		`${domain} wants you to sign in with your Ethereum account:`,
 		address,
 		"",
 		"Sign in to W3Stor",
 		"",
-		"URI: https://w3stor.xyz",
+		`URI: ${serverUrl}`,
 		"Version: 1",
 		"Chain ID: 84532",
 		`Nonce: ${nonce}`,

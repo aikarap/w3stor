@@ -35,27 +35,37 @@ export function registerGraph(cli: ReturnType<typeof Cli.create>) {
 		args: z.object({
 			cid: z.string().describe("IPFS CID of the file to index"),
 		}),
+		options: z.object({
+			description: z.string().optional().describe("Description of the file"),
+			tags: z.string().optional().describe("Comma-separated tags"),
+		}),
+		alias: { description: "d", tags: "t" },
 		output: z.object({
-			cid: z.string(),
-			nodeId: z.string(),
-			status: z.string(),
+			success: z.boolean(),
+			node: z.any(),
 		}),
 		examples: [
 			{
 				args: { cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi" },
+				options: { description: "My dataset", tags: "data,research" },
 				description: "Add a file to the knowledge graph",
 			},
 		],
 		hint: "Requires USDC on Base Sepolia for x402 payment.",
 		async run(c) {
 			const { cid } = c.args;
+			const { description, tags } = c.options;
 			const payFetch = createPaymentFetch();
 			const serverUrl = getServerUrl();
 
 			const res = await payFetch(`${serverUrl}/graph/files`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ cid }),
+				body: JSON.stringify({
+					cid,
+					description,
+					tags: tags?.split(",").map((t) => t.trim()),
+				}),
 			});
 
 			if (!res.ok) {
@@ -66,7 +76,7 @@ export function registerGraph(cli: ReturnType<typeof Cli.create>) {
 				});
 			}
 
-			const data = (await res.json()) as { cid: string; nodeId: string; status: string };
+			const data = (await res.json()) as { success: boolean; node: any };
 
 			return c.ok(data, {
 				cta: {
