@@ -9,6 +9,7 @@ COPY packages/workers/package.json packages/workers/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/modules/package.json packages/modules/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/graph/package.json packages/graph/package.json
 COPY packages/sdk/package.json packages/sdk/package.json
 COPY packages/cli/package.json packages/cli/package.json
 

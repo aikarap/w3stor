@@ -6,3 +6,6 @@ apps/web
 *.md
 .turbo
 .next
+.worktrees
+.superpowers
+docs/

@@ -2,40 +2,41 @@
 	"providers": [
 		{
 			"id": "sp1",
-			"datasetId": 11795,
+			"datasetId": 12918,
 			"providerId": 4,
-			"address": "0xcb9e86945ca31e6c3120725bf0385cbad684040c",
-			"clientDataSetId": "100629110484660525645282932077507457223972768621744194011815648028954400696169",
+			"address": "0xCb9e86945cA31E6C3120725BF0385CBAD684040c",
+			"clientDataSetId": "9397765025947641331013840169516562656384195384093016540210835211235090003320",
 			"name": "infrafolio-calib",
 			"url": "https://caliberation-pdp.infrafolio.com",
 			"priority": 1
 		},
 		{
 			"id": "sp2",
-			"datasetId": 11796,
+			"datasetId": 12917,
 			"providerId": 5,
-			"address": "0xb709a785c765d7d3f7d94dba367da6a611d7972b",
-			"clientDataSetId": "72374096307113624147119412696602421843502438387405356721889797173354015079652",
+			"address": "0xB709A785c765d7d3F7d94dbA367DA6a611D7972b",
+			"clientDataSetId": "7782418756691983613668450359405013727871695154303127517611646276452491789589",
 			"name": "Mongo2Stor",
 			"url": "https://warp.lotus.dedyn.io",
 			"priority": 2
 		},
 		{
 			"id": "sp3",
-			"datasetId": 11797,
+			"datasetId": 12919,
 			"providerId": 9,
 			"address": "0xa3971a7234a3379a1813d9867b531e7eeb20ae07",
-			"clientDataSetId": "70024111130983776030736289953525982665346819836810159136280794819331037451830",
+			"clientDataSetId": "86480482213373118585781457586477413358657640439949791291726142205125684047155",
 			"name": "ezpdpz-calib",
 			"url": "https://calib.ezpdpz.net",
 			"priority": 3
 		},
+
 		{
 			"id": "sp4",
-			"datasetId": 11798,
+			"datasetId": 12916,
 			"providerId": 2,
-			"address": "0xbcdf1bdc1a97d071a5a8ef03f1f05225b6e2a1ba",
-			"clientDataSetId": "1524897770267101479370649537665495830676497937055612486502168043014935477764",
+			"address": "0xbCdf1bdc1a97D071a5a8EF03F1F05225b6E2a1Ba",
+			"clientDataSetId": "88130572762616203017494423836674670679629431544351047574415710191655429529914Dataset",
 			"name": "ezpdpz-calib2",
 			"url": "https://calib2.ezpdpz.net",
 			"priority": 4
