@@ -8,6 +8,7 @@ import { registerHealth } from "./commands/health.ts";
 import { registerInit } from "./commands/init.ts";
 import { registerStatus } from "./commands/status.ts";
 import { registerUpload } from "./commands/upload.ts";
+import { registerBatchUpload } from "./commands/batch-upload.ts";
 import { wallet } from "./commands/wallet.ts";
 
 const cli = Cli.create("w3stor", {
@@ -29,6 +30,7 @@ const cli = Cli.create("w3stor", {
 registerInit(cli);
 registerAuth(cli);
 registerUpload(cli);
+registerBatchUpload(cli);
 registerFiles(cli);
 registerStatus(cli);
 registerAttest(cli);

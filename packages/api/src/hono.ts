@@ -35,13 +35,13 @@ app.route("/", metricsRoute);
 app.route("/", authRoute);
 
 // x402 payment middleware
-app.use("/upload", x402PaymentMiddleware);
+app.on("POST", "/upload", x402PaymentMiddleware);
+app.on("POST", "/batch-upload", x402PaymentMiddleware);
 app.use("/workflows/execute", x402PaymentMiddleware);
 app.use("/attest/:cid", x402PaymentMiddleware);
 app.on("POST", "/graph/files", x402PaymentMiddleware);
 app.on("POST", "/graph/connections", x402PaymentMiddleware);
 app.on("POST", "/graph/agents", x402PaymentMiddleware);
-app.on("POST", "/upload/batch", x402PaymentMiddleware);
 
 // SIWE auth middleware (graph reads + deletes)
 app.on("DELETE", "/graph/files/*", siweMiddleware);

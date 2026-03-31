@@ -85,17 +85,12 @@ async function getHTTPResourceServer(): Promise<x402HTTPResourceServer> {
 			},
 			description: "Connect to another agent",
 		},
-		"POST /upload/batch": {
+		"POST /batch-upload": {
 			accepts: {
 				scheme: "exact",
 				network,
 				payTo,
-				price: (ctx: { adapter: HTTPAdapter }) => {
-					const fileCount = parseInt(ctx.adapter.getHeader("x-batch-files") ?? "1", 10);
-					const sizeBytes = parseInt(ctx.adapter.getHeader("x-batch-size") ?? "0", 10);
-					const connectionCount = parseInt(ctx.adapter.getHeader("x-batch-connections") ?? "0", 10);
-					return calculateBatchPrice(fileCount, sizeBytes, connectionCount);
-				},
+				price: calculateOperationPrice("graph-add-file"),
 			},
 			description: "Batch file upload with graph integration",
 		},

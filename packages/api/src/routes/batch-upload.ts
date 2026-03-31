@@ -25,7 +25,7 @@ const MAX_CONNECTIONS = 50;
 
 export const batchUploadRoute = new Hono();
 
-batchUploadRoute.post("/upload/batch", async (c) => {
+batchUploadRoute.post("/batch-upload", async (c) => {
   try {
     const walletAddress = c.get("walletAddress" as never) as string | undefined;
     if (!walletAddress) return c.json({ error: "Payment required" }, 402);
