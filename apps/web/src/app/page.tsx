@@ -19,6 +19,7 @@ import { Particles } from "@/components/ui/particles";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 
 const protocolBadges = [
+	"Agent Memory",
 	"REST API",
 	"MCP Server",
 	"A2A Protocol",
@@ -38,23 +39,23 @@ export default function Home() {
 				<div className="relative mx-auto max-w-7xl px-4 pb-28 pt-36 text-center">
 					<BlurFade delay={0.05}>
 						<p className="mb-6 text-xs font-medium uppercase tracking-[0.2em] text-blue-400">
-							w3stor.agent
+							Persistent. Verifiable. Intelligent.
 						</p>
 					</BlurFade>
 
 					<BlurFade delay={0.1}>
 						<h1 className="mx-auto max-w-4xl text-5xl font-bold tracking-tight sm:text-7xl">
-							Decentralized Storage for{" "}
+							Decentralized Memory & Storage for{" "}
 							<span className="bg-gradient-to-r from-blue-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">
-								Autonomous Agents
+								AI Agents
 							</span>
 						</h1>
 					</BlurFade>
 
 					<BlurFade delay={0.2}>
 						<p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-							Connect any AI framework. Pay from any L2 with x402. Store permanently on Filecoin.
-							One unified API for every agent.
+							Persistent agent memory with sovereign knowledge graphs. Semantic search across everything you store.
+							Powered by Filecoin, paid with x402 micropayments. One unified API for every agent.
 						</p>
 					</BlurFade>
 

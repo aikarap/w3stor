@@ -13,8 +13,7 @@ const claudeDesktopConfig = `// ~/Library/Application Support/Claude/claude_desk
       "command": "w3stor",
       "args": ["--mcp"],
       "env": {
-        "FILECOIN_PRIVATE_KEY": "0x...",
-        "PINATA_JWT": "your-jwt-token"
+        "PRIVATE_KEY": "0x..."
       }
     }
   }

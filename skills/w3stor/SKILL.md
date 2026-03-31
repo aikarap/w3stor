@@ -1,36 +1,25 @@
 ---
 name: w3stor
-description: CLI for Web3 Storage Agent — decentralized file storage on Filecoin with x402 micropayments. Upload files, check replication status, get storage attestations, and manage your wallet.
+description: CLI for W3Stor — persistent decentralized agent memory and storage on Filecoin with x402 micropayments. Upload files, build agent memory graphs, semantic search, check replication, get attestations, and manage your wallet.
 ---
 
 # w3stor
 
-Decentralized storage CLI powered by Web3 Storage Agent. Files are pinned to IPFS (Pinata) immediately, then replicated across multiple Filecoin Storage Providers. Payments are handled automatically via the x402 protocol using USDC on Base Sepolia.
+Persistent agent memory and decentralized storage CLI. Files are pinned to IPFS (Pinata) immediately, then replicated across multiple Filecoin Storage Providers. Each agent gets a sovereign knowledge graph with semantic search across stored files. Payments are handled automatically via the x402 protocol using USDC on Base Sepolia.
 
 ## Quick Start
 
 ```sh
-# 1. Install dependencies
-bun install
+# 1. Install globally
+npm install -g @w3stor/cli
 
-# 2. Build the CLI
-bun run skills:build
-
-# 3. Link globally (makes `w3stor` available in your terminal)
-bun link
-
-# 4. Start the server (in a separate terminal)
-bun run dev
-
-# 5. Initialize your wallet
+# 2. Initialize your wallet
 w3stor init --privateKey 0x<your-private-key>
 
-# 6. Verify everything works
+# 3. Verify everything works
 w3stor health
 w3stor wallet balance
 ```
-
-> If you skip `bun link`, use `./dist/skills/index.js` instead of `w3stor`.
 
 ### Alternative init methods
 
@@ -41,9 +30,30 @@ PRIVATE_KEY=0x... w3stor init --auto
 # From a Foundry cast keystore
 w3stor init --keystore ~/.foundry/keystores/default
 
-# Custom server URL (default: http://localhost:4000)
-w3stor init --serverUrl https://my-agent.example.com
+# Custom server URL (default: https://api.w3stor.xyz)
+w3stor init --serverUrl https://api.w3stor.xyz
 ```
+
+## File Size Limits
+
+| Limit | Value | Notes |
+|-------|-------|-------|
+| **Minimum** | 127 bytes | PieceCIDv2 calculation requires at least 127 bytes payload |
+| **Maximum** | ~1 GiB (1,065,353,216 bytes) | 1 GiB * 127/128 — Filecoin sector alignment |
+| **Batch max** | 100 MB total, 10 files | Per batch upload request |
+
+## Pricing
+
+All paid operations use x402 micropayments (USDC on Base Sepolia). No accounts or API keys needed — just a funded wallet.
+
+| Operation | Price | Unit |
+|-----------|-------|------|
+| Upload | $0.0001 | per MB (min $0.00001) |
+| Attestation | $0.50 | per operation |
+| Workflow execute | $0.001 | per operation |
+| Graph: add file | $0.00005 | per operation |
+| Graph: connect | $0.00002 | per operation |
+| Batch upload | $0.0002/file + $0.0001/MB + $0.00005/connection | combined |
 
 ## Commands
 
@@ -55,6 +65,12 @@ w3stor init --serverUrl https://my-agent.example.com
 | `w3stor files` | List uploaded files | No |
 | `w3stor status <cid>` | Check replication across SPs | No |
 | `w3stor attest <cid>` | Get cryptographic storage attestation | Yes |
+| `w3stor auth login` | SIWE session auth (required for graph reads) | No |
+| `w3stor graph add <cid>` | Add file to agent memory graph | Yes |
+| `w3stor graph connect <from> <to>` | Create file relationship | Yes |
+| `w3stor graph search <query>` | Semantic search across your files | No |
+| `w3stor graph traverse <cid>` | Explore connected files by hops | No |
+| `w3stor graph remove <cid>` | Remove file from memory graph | No |
 | `w3stor wallet balance` | Check USDC balance (Base Sepolia) | No |
 | `w3stor wallet address` | Show configured wallet address | No |
 
@@ -81,6 +97,30 @@ w3stor files --page 2 --limit 5
 ```
 
 Status values: `pinata_pinned`, `uploading`, `stored`, `fully_replicated`, `failed`
+
+### Agent Memory (Knowledge Graph)
+
+```sh
+# First authenticate for graph read operations
+w3stor auth login
+
+# Add a file to your memory graph with metadata
+w3stor graph add bafkrei... --description "Q3 financial report" --tags "finance,quarterly"
+
+# Connect files with relationships
+w3stor graph connect bafkreiA bafkreiB --rel "references"
+w3stor graph connect bafkreiB bafkreiC --rel "derived_from"
+
+# Semantic search — finds files by meaning, not just keywords
+w3stor graph search "quarterly financial analysis"
+w3stor graph search "machine learning datasets" --limit 10
+
+# Traverse the graph from a starting file
+w3stor graph traverse bafkrei... --depth 3
+
+# Remove a file from memory (does not delete the stored file)
+w3stor graph remove bafkrei...
+```
 
 ### Check status & attest
 
@@ -141,8 +181,51 @@ Commands that cost USDC (`upload`, `attest`) use the x402 protocol:
 
 No manual approval needed — just have USDC on Base Sepolia.
 
+## Workflows
+
+### Upload + Build Memory in One Flow
+
+```sh
+# 1. Upload files
+w3stor upload research.pdf --tags "research,ml"
+# Returns CID: bafkreiA
+
+w3stor upload dataset.csv --tags "data,ml"
+# Returns CID: bafkreiB
+
+# 2. Add to memory graph with descriptions
+w3stor graph add bafkreiA --description "ML research paper on transformers" --tags "research,ml"
+w3stor graph add bafkreiB --description "Training dataset for transformer model" --tags "data,ml"
+
+# 3. Connect them
+w3stor graph connect bafkreiA bafkreiB --rel "trained_on"
+
+# 4. Later, find related files by meaning
+w3stor graph search "transformer training data"
+```
+
+### Batch Upload (SDK / API)
+
+Upload multiple files with graph connections in a single x402 payment via `POST /upload/batch`. Supports up to 10 files (100MB total) with up to 50 connections per batch. Files can reference each other by index or existing CIDs.
+
+### Research Swarm Workflow
+
+```sh
+# Fan out research, store results, build a connected memory
+w3stor upload paper1.pdf --tags "research"
+w3stor upload paper2.pdf --tags "research"
+w3stor upload synthesis.md --tags "synthesis"
+
+w3stor graph connect bafkreiSynthesis bafkreiPaper1 --rel "synthesizes"
+w3stor graph connect bafkreiSynthesis bafkreiPaper2 --rel "synthesizes"
+
+# Traverse from synthesis to find all source material
+w3stor graph traverse bafkreiSynthesis --depth 2
+```
+
 ## Requirements
 
 - [Bun](https://bun.sh) runtime
-- Running server (`bun run dev`) with PostgreSQL, Redis, and Pinata configured
-- USDC on Base Sepolia for `upload` and `attest` commands
+- Running server (`bun run dev`) with PostgreSQL, Redis, Neo4j, and Pinata configured
+- USDC on Base Sepolia for `upload`, `attest`, `graph add`, and `graph connect` commands
+- OpenAI API key for semantic embeddings (graph search)
