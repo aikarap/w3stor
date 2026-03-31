@@ -17,4 +17,8 @@ export interface PinataUnpinJob {
 	pinataPinId: string;
 }
 
-export type JobPayload = FilecoinUploadJob | RetrievalVerifyJob | PinataUnpinJob;
+export interface SPRetryCheckJob {
+	triggeredBy: "schedule" | "manual";
+}
+
+export type JobPayload = FilecoinUploadJob | RetrievalVerifyJob | PinataUnpinJob | SPRetryCheckJob;

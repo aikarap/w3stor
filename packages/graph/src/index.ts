@@ -40,3 +40,6 @@ export { semanticSearch } from "./queries/semantic-search";
 export { traverse } from "./queries/traverse";
 export { combinedSearch, type CombinedSearchInputType } from "./queries/combined-search";
 export { getGraph } from "./queries/get-graph";
+
+// Stats
+export { getTotalGraphNodes } from "./queries/stats";

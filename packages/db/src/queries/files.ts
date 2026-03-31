@@ -201,3 +201,40 @@ export async function updateUserFilePayment(params: {
 			),
 		);
 }
+
+export async function getPartiallyStoredFiles(): Promise<
+	{ cid: string; sizeBytes: number; pieceCid: string | null; storedCount: number; failedSPs: string[] }[]
+> {
+	const db = getDatabase();
+	const result = await db.execute(sql`
+		SELECT
+			f.cid,
+			f.size_bytes,
+			f.piece_cid,
+			(SELECT COUNT(*)::int FROM file_sp_status s
+			 WHERE s.cid = f.cid AND s.status IN ('stored', 'verified', 'tx_confirmed')) AS stored_count,
+			ARRAY(
+				SELECT s.sp_id FROM file_sp_status s
+				WHERE s.cid = f.cid AND s.status = 'failed'
+			) AS failed_sps
+		FROM files f
+		WHERE f.status != 'fully_replicated'
+		  AND EXISTS (
+			SELECT 1 FROM file_sp_status s
+			WHERE s.cid = f.cid AND s.status IN ('stored', 'verified', 'tx_confirmed')
+		  )
+		  AND EXISTS (
+			SELECT 1 FROM file_sp_status s
+			WHERE s.cid = f.cid AND s.status = 'failed'
+		  )
+		LIMIT 50
+	`);
+
+	return (result as Record<string, unknown>[]).map((row) => ({
+		cid: row.cid as string,
+		sizeBytes: Number(row.size_bytes),
+		pieceCid: row.piece_cid as string | null,
+		storedCount: Number(row.stored_count),
+		failedSPs: (row.failed_sps as string[]) ?? [],
+	}));
+}

@@ -13,8 +13,8 @@ import {
 	verifyFilecoinFile,
 } from "@w3stor/modules/filecoin";
 import { fetchFromIPFS, unpinFile } from "@w3stor/modules/pinata";
-import { enqueuePinataUnpin, getWorkerRedisConnection } from "@w3stor/modules/queue";
-import type { FilecoinUploadJob, PinataUnpinJob, RetrievalVerifyJob } from "@w3stor/shared";
+import { enqueuePinataUnpin, getWorkerRedisConnection, setupRetrySchedule } from "@w3stor/modules/queue";
+import type { FilecoinUploadJob, PinataUnpinJob, RetrievalVerifyJob, SPRetryCheckJob } from "@w3stor/shared";
 import {
 	config,
 	logger,
@@ -25,11 +25,18 @@ import {
 } from "@w3stor/shared";
 import { type Job, Worker } from "bullmq";
 import { initializeIndexes } from "@w3stor/graph";
+import { processSPRetryCheck } from "./sp-retry";
 
 validateConfig();
 
 initializeIndexes().catch((err) => {
 	logger.warn("Neo4j index initialization failed", { error: err instanceof Error ? err.message : String(err) });
+});
+
+setupRetrySchedule().catch((err) => {
+	logger.warn("Failed to setup SP retry schedule", {
+		error: err instanceof Error ? err.message : String(err),
+	});
 });
 
 async function processFilecoinUpload(job: Job<FilecoinUploadJob>): Promise<void> {
@@ -392,6 +399,10 @@ const worker = new Worker(
 
 				case "pinata-unpin":
 					await processPinataUnpin(job as Job<PinataUnpinJob>);
+					break;
+
+				case "sp-retry-check":
+					await processSPRetryCheck(job as Job<SPRetryCheckJob>);
 					break;
 
 				default:

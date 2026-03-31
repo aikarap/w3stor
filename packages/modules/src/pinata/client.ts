@@ -94,47 +94,74 @@ export async function fetchFromIPFS(cid: string): Promise<Uint8Array> {
 	const gatewayUrl = config.pinata.gatewayUrl.replace(/\/$/, "");
 	const gatewayToken = config.pinata.gatewayToken;
 
-	// Dedicated gateways use ?pinataGatewayToken=, public gateway uses Bearer JWT
-	const url = gatewayToken
-		? `${gatewayUrl}/ipfs/${cid}?pinataGatewayToken=${gatewayToken}`
-		: `${gatewayUrl}/ipfs/${cid}`;
+	// Gateway fallback chain: public (no auth, 2 retries) → personal (auth) → ipfs.io
+	const gateways: { name: string; url: string; headers: Record<string, string>; retries: number }[] = [
+		{
+			name: "public-pinata",
+			url: `https://gateway.pinata.cloud/ipfs/${cid}`,
+			headers: {},
+			retries: 2,
+		},
+		{
+			name: "personal-pinata",
+			url: gatewayToken
+				? `${gatewayUrl}/ipfs/${cid}?pinataGatewayToken=${gatewayToken}`
+				: `${gatewayUrl}/ipfs/${cid}`,
+			headers: !gatewayToken ? { Authorization: `Bearer ${config.pinata.jwt}` } : {},
+			retries: 1,
+		},
+		{
+			name: "ipfs-io",
+			url: `https://ipfs.io/ipfs/${cid}`,
+			headers: {},
+			retries: 1,
+		},
+	];
 
-	const headers: Record<string, string> = {};
-	if (!gatewayToken) {
-		headers.Authorization = `Bearer ${config.pinata.jwt}`;
+	for (const gateway of gateways) {
+		for (let attempt = 1; attempt <= gateway.retries; attempt++) {
+			try {
+				logger.info("Fetching from IPFS gateway", {
+					cid,
+					gateway: gateway.name,
+					attempt,
+					maxAttempts: gateway.retries,
+				});
+
+				const response = await fetch(gateway.url, { headers: gateway.headers });
+
+				if (!response.ok) {
+					logger.warn("IPFS gateway returned error", {
+						cid,
+						gateway: gateway.name,
+						attempt,
+						status: response.status,
+					});
+					continue;
+				}
+
+				const arrayBuffer = await response.arrayBuffer();
+
+				logger.info("File fetched from IPFS gateway", {
+					cid,
+					gateway: gateway.name,
+					attempt,
+					sizeBytes: arrayBuffer.byteLength,
+				});
+
+				return new Uint8Array(arrayBuffer);
+			} catch (error) {
+				logger.warn("IPFS gateway fetch attempt failed", {
+					cid,
+					gateway: gateway.name,
+					attempt,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
 	}
 
-	try {
-		const response = await fetch(url, { headers });
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new PinataError("Pinata gateway fetch failed", {
-				status: response.status,
-				error: errorText,
-			});
-		}
-
-		const arrayBuffer = await response.arrayBuffer();
-
-		logger.info("File fetched from IPFS gateway", {
-			cid,
-			sizeBytes: arrayBuffer.byteLength,
-		});
-
-		return new Uint8Array(arrayBuffer);
-	} catch (error) {
-		if (error instanceof PinataError) {
-			throw error;
-		}
-
-		logger.error("Pinata gateway fetch failed", {
-			cid,
-			error: error instanceof Error ? error.message : String(error),
-		});
-
-		throw new PinataError("Failed to fetch file from IPFS");
-	}
+	throw new PinataError("All IPFS gateways failed", { cid });
 }
 
 export async function checkPinataHealth(): Promise<boolean> {

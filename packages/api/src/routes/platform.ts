@@ -1,4 +1,6 @@
 import { getPlatformMetrics, listAllFiles } from "@w3stor/db";
+import { getTotalGraphNodes } from "@w3stor/graph";
+import { logger } from "@w3stor/shared";
 import { Hono } from "hono";
 
 export const platformRoute = new Hono();
@@ -19,6 +21,14 @@ platformRoute.get("/platform/activity", async (c) => {
 
 /** GET /platform/metrics */
 platformRoute.get("/platform/metrics", async (c) => {
-	const metrics = await getPlatformMetrics();
-	return c.json(metrics);
+	const [metrics, graphNodes] = await Promise.all([
+		getPlatformMetrics(),
+		getTotalGraphNodes().catch((err) => {
+			logger.warn("Failed to get graph node count", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+			return 0;
+		}),
+	]);
+	return c.json({ ...metrics, graphNodes });
 });

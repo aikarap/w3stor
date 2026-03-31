@@ -148,7 +148,7 @@ export const config: Config = {
 		),
 		replicationMinProviders: parseInt(getOptionalEnv("FILECOIN_REPLICATION_MIN", "2") || "2", 10),
 		replicationTotalProviders: parseInt(
-			getOptionalEnv("FILECOIN_REPLICATION_TOTAL", "4") || "4",
+			getOptionalEnv("FILECOIN_REPLICATION_TOTAL", "3") || "3",
 			10,
 		),
 	},
