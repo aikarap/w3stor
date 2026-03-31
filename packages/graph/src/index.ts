@@ -34,3 +34,9 @@ export { removeFile } from "./mutations/remove-file";
 export { connectFiles } from "./mutations/connect-files";
 export { disconnectFiles } from "./mutations/disconnect-files";
 export { connectAgent } from "./mutations/connect-agent";
+
+// Queries
+export { semanticSearch } from "./queries/semantic-search";
+export { traverse } from "./queries/traverse";
+export { combinedSearch, type CombinedSearchInputType } from "./queries/combined-search";
+export { getGraph } from "./queries/get-graph";
