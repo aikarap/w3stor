@@ -26,33 +26,39 @@ export function createPaymentFetch(): (
 	const client = new x402Client();
 	client.register("eip155:*", new ExactEvmScheme(toClientEvmSigner(account, publicClient)));
 
-	const x402Fetch = wrapFetchWithPayment(fetch, client);
+	// x402 wrapFetchWithPayment converts input to a Request, which consumes
+	// FormData/stream bodies. On the 402 retry, the body is empty (already read).
+	// Fix: wrap the underlying fetch to capture and replay the body from the Request.
+	let capturedBody: ArrayBuffer | null = null;
+	let capturedContentType: string | null = null;
 
-	// Wrap to handle FormData body re-send on 402 retry.
-	// x402 wrapFetch does: first request (gets 402) → retry with payment header.
-	// But FormData/stream bodies are consumed on the first attempt, so the retry
-	// sends an empty body. Fix: intercept fetch to re-create FormData on each call.
-	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-		if (init?.body instanceof FormData) {
-			const originalFormData = init.body;
-			// Serialize all FormData entries so we can rebuild it on retry
-			const entries: Array<[string, FormDataEntryValue]> = [];
-			for (const [key, value] of originalFormData.entries()) {
-				entries.push([key, value]);
+	const replayableFetch: typeof fetch = async (input, init) => {
+		// x402 passes Request objects — extract body on first call, replay on retry
+		if (input instanceof Request) {
+			if (capturedBody === null && input.body) {
+				capturedContentType = input.headers.get("content-type");
+				capturedBody = await input.clone().arrayBuffer();
 			}
-
-			// Override the underlying fetch to rebuild FormData each time
-			const replayableFetch: typeof fetch = async (reqInput, reqInit) => {
-				const freshForm = new FormData();
-				for (const [key, value] of entries) {
-					freshForm.append(key, value);
-				}
-				return fetch(reqInput, { ...reqInit, body: freshForm });
-			};
-
-			const replayableX402Fetch = wrapFetchWithPayment(replayableFetch, client);
-			return replayableX402Fetch(input, { ...init, body: originalFormData });
+			if (capturedBody && (!input.body || input.bodyUsed)) {
+				// Body was consumed — rebuild the request with captured body
+				const headers = new Headers(input.headers);
+				if (capturedContentType) headers.set("content-type", capturedContentType);
+				return fetch(new Request(input.url, {
+					method: input.method,
+					headers,
+					body: capturedBody,
+				}));
+			}
 		}
+		return fetch(input, init);
+	};
+
+	const x402Fetch = wrapFetchWithPayment(replayableFetch, client);
+
+	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+		// Reset capture state for each top-level call
+		capturedBody = null;
+		capturedContentType = null;
 		return x402Fetch(input, init);
 	};
 }
