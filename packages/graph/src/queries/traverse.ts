@@ -1,3 +1,4 @@
+import neo4j from "neo4j-driver";
 import { getNeo4jDriver } from "../client";
 import { TraverseInput, type TraverseInputType, type GraphNode, type GraphEdge } from "../schema";
 
@@ -22,7 +23,7 @@ export async function traverse(
         {
           walletAddress: data.walletAddress,
           cid: data.cid,
-          depth: data.depth,
+          depth: neo4j.int(data.depth),
         }
       );
     });

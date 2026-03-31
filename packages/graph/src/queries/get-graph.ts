@@ -1,3 +1,4 @@
+import neo4j from "neo4j-driver";
 import { getNeo4jDriver } from "../client";
 import { GetGraphInput, type GetGraphInputType, type GraphNode, type GraphEdge } from "../schema";
 
@@ -15,7 +16,7 @@ export async function getGraph(
          RETURN f
          ORDER BY f.addedAt DESC
          LIMIT $limit`,
-        { walletAddress: data.walletAddress, limit: data.limit }
+        { walletAddress: data.walletAddress, limit: neo4j.int(data.limit) }
       );
 
       const edgesResult = await tx.run(

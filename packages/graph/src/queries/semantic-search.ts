@@ -1,3 +1,4 @@
+import neo4j from "neo4j-driver";
 import { getNeo4jDriver } from "../client";
 import { SemanticSearchInput, type SemanticSearchInputType, type SearchResult } from "../schema";
 import { generateEmbedding } from "../embeddings";
@@ -22,7 +23,7 @@ export async function semanticSearch(input: SemanticSearchInputType): Promise<Se
         {
           walletAddress: data.walletAddress,
           embedding: queryEmbedding,
-          limit: data.limit,
+          limit: neo4j.int(data.limit),
           threshold: data.threshold,
         }
       );

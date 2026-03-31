@@ -1,3 +1,4 @@
+import neo4j from "neo4j-driver";
 import { getNeo4jDriver } from "../client";
 import { generateEmbedding } from "../embeddings";
 import { type SearchResult } from "../schema";
@@ -41,7 +42,7 @@ export async function combinedSearch(input: CombinedSearchInputType): Promise<Se
           fromCid: data.fromCid,
           depth: data.depth,
           embedding: queryEmbedding,
-          limit: data.limit,
+          limit: neo4j.int(data.limit),
           threshold: data.threshold,
         }
       );
