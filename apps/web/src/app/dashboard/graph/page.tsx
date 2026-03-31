@@ -8,13 +8,72 @@ import { ForceGraph } from "./force-graph";
 import type { GraphNode, GraphEdge } from "./force-graph";
 import { apiFetch } from "@/hooks/use-api";
 
+interface ApiGraphNode {
+	walletAddress: string;
+	cid: string;
+	filename?: string;
+	description?: string;
+	tags?: string[];
+	contentType?: string;
+	sizeBytes?: number;
+	addedAt?: string;
+}
+
+interface ApiGraphEdge {
+	fromCid: string;
+	toCid: string;
+	relationship: string;
+}
+
 interface GraphViewResponse {
-	nodes: GraphNode[];
-	edges: GraphEdge[];
+	nodes: ApiGraphNode[];
+	edges: ApiGraphEdge[];
 }
 
 interface SearchResponse {
-	results: GraphNode[];
+	results: ApiGraphNode[];
+}
+
+function toGraphNodes(apiNodes: ApiGraphNode[], wallet: string): GraphNode[] {
+	const agentNode: GraphNode = {
+		id: wallet,
+		label: `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
+		type: "Agent",
+		wallet,
+	};
+
+	const fileNodes: GraphNode[] = apiNodes.map((n) => ({
+		id: n.cid,
+		label: n.filename || n.cid.slice(0, 12),
+		type: "File" as const,
+		cid: n.cid,
+		sizeBytes: n.sizeBytes,
+		mimeType: n.contentType,
+		createdAt: n.addedAt,
+		wallet: n.walletAddress,
+	}));
+
+	return [agentNode, ...fileNodes];
+}
+
+function toGraphEdges(apiNodes: ApiGraphNode[], apiEdges: ApiGraphEdge[], wallet: string): GraphEdge[] {
+	// HAS_FILE edges from agent to each file
+	const ownerEdges: GraphEdge[] = apiNodes.map((n) => ({
+		id: `${wallet}->${n.cid}`,
+		source: wallet,
+		target: n.cid,
+		relationship: "HAS_FILE",
+	}));
+
+	// File-to-file edges
+	const fileEdges: GraphEdge[] = apiEdges.map((e) => ({
+		id: `${e.fromCid}->${e.toCid}:${e.relationship}`,
+		source: e.fromCid,
+		target: e.toCid,
+		relationship: e.relationship,
+	}));
+
+	return [...ownerEdges, ...fileEdges];
 }
 
 function formatBytes(bytes: number): string {
@@ -221,8 +280,9 @@ function GraphClient() {
 		})
 			.then((data) => {
 				if (cancelled) return;
-				setNodes(data.nodes ?? []);
-				setEdges(data.edges ?? []);
+				const wallet = address?.toLowerCase() ?? "";
+				setNodes(toGraphNodes(data.nodes ?? [], wallet));
+				setEdges(toGraphEdges(data.nodes ?? [], data.edges ?? [], wallet));
 			})
 			.catch((err: unknown) => {
 				if (cancelled) return;
@@ -235,7 +295,7 @@ function GraphClient() {
 		return () => {
 			cancelled = true;
 		};
-	}, [authToken]);
+	}, [authToken, address]);
 
 	// Debounced semantic search
 	useEffect(() => {
@@ -252,7 +312,17 @@ function GraphClient() {
 				headers: { Authorization: `Bearer ${authToken}` },
 			})
 				.then((data) => {
-					setSearchResults(data.results ?? []);
+					const results = (data.results ?? []).map((r) => ({
+						id: r.cid,
+						label: r.filename || r.cid.slice(0, 12),
+						type: "File" as const,
+						cid: r.cid,
+						sizeBytes: r.sizeBytes,
+						mimeType: r.contentType,
+						description: r.description,
+						tags: r.tags,
+					}));
+					setSearchResults(results);
 				})
 				.catch(() => {
 					setSearchResults([]);
