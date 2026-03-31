@@ -131,13 +131,15 @@ function GraphLegend() {
 }
 
 function buildSiweMessage(address: string, nonce: string): string {
+	const domain = typeof window !== "undefined" ? window.location.host : "w3stor.xyz";
+	const uri = typeof window !== "undefined" ? window.location.origin : "https://w3stor.xyz";
 	return [
-		"w3stor.xyz wants you to sign in with your Ethereum account:",
+		`${domain} wants you to sign in with your Ethereum account:`,
 		address,
 		"",
 		"Sign in to W3Stor",
 		"",
-		"URI: https://w3stor.xyz",
+		`URI: ${uri}`,
 		"Version: 1",
 		"Chain ID: 84532",
 		`Nonce: ${nonce}`,
