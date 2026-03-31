@@ -97,8 +97,7 @@ graphRoute.post("/graph/agents", async (c) => {
 
 graphRoute.get("/graph/search", async (c) => {
   try {
-    const walletAddress = c.req.query("wallet");
-    if (!walletAddress) return c.json({ error: "Missing wallet query param" }, 400);
+    const walletAddress = c.get("walletAddress" as never) as string;
 
     const query = c.req.query("q");
     if (!query) return c.json({ error: "Missing q query param" }, 400);
@@ -116,8 +115,7 @@ graphRoute.get("/graph/search", async (c) => {
 
 graphRoute.get("/graph/traverse/:cid", async (c) => {
   try {
-    const walletAddress = c.req.query("wallet");
-    if (!walletAddress) return c.json({ error: "Missing wallet query param" }, 400);
+    const walletAddress = c.get("walletAddress" as never) as string;
 
     const cid = c.req.param("cid");
     const depth = parseInt(c.req.query("depth") || "2", 10);
@@ -133,8 +131,7 @@ graphRoute.get("/graph/traverse/:cid", async (c) => {
 
 graphRoute.get("/graph/view", async (c) => {
   try {
-    const walletAddress = c.req.query("wallet");
-    if (!walletAddress) return c.json({ error: "Missing wallet query param" }, 400);
+    const walletAddress = c.get("walletAddress" as never) as string;
 
     const limit = parseInt(c.req.query("limit") || "500", 10);
 

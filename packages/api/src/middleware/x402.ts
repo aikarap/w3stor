@@ -1,4 +1,5 @@
 import {
+	calculateBatchPrice,
 	calculateOperationPrice,
 	calculateUploadCost,
 	getResourceServer,
@@ -56,6 +57,47 @@ async function getHTTPResourceServer(): Promise<x402HTTPResourceServer> {
 				price: calculateOperationPrice("workflow-execute"),
 			},
 			description: "Execute a storage workflow",
+		},
+		"POST /graph/files": {
+			accepts: {
+				scheme: "exact",
+				network,
+				payTo,
+				price: calculateOperationPrice("graph-add-file"),
+			},
+			description: "Add file to knowledge graph",
+		},
+		"POST /graph/connections": {
+			accepts: {
+				scheme: "exact",
+				network,
+				payTo,
+				price: calculateOperationPrice("graph-connect"),
+			},
+			description: "Connect files in knowledge graph",
+		},
+		"POST /graph/agents": {
+			accepts: {
+				scheme: "exact",
+				network,
+				payTo,
+				price: calculateOperationPrice("graph-connect"),
+			},
+			description: "Connect to another agent",
+		},
+		"POST /upload/batch": {
+			accepts: {
+				scheme: "exact",
+				network,
+				payTo,
+				price: (ctx: { adapter: HTTPAdapter }) => {
+					const fileCount = parseInt(ctx.adapter.getHeader("x-batch-files") ?? "1", 10);
+					const sizeBytes = parseInt(ctx.adapter.getHeader("x-batch-size") ?? "0", 10);
+					const connectionCount = parseInt(ctx.adapter.getHeader("x-batch-connections") ?? "0", 10);
+					return calculateBatchPrice(fileCount, sizeBytes, connectionCount);
+				},
+			},
+			description: "Batch file upload with graph integration",
 		},
 	};
 

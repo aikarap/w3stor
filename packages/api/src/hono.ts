@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { x402PaymentMiddleware } from "./middleware/x402";
+import { siweMiddleware } from "./middleware/siwe";
 import { a2aRoutes } from "./routes/a2a";
+import { authRoute } from "./routes/auth";
 import { eventsRoute } from "./routes/events";
 import { attestRoute } from "./routes/attest";
 import { conversationsRoute } from "./routes/conversations";
@@ -28,13 +30,24 @@ app.use(
 app.route("/", healthRoute);
 app.route("/", metricsRoute);
 
-// x402 payment middleware on protected routes
+// Auth routes (no payment required)
+app.route("/", authRoute);
+
+// x402 payment middleware
 app.use("/upload", x402PaymentMiddleware);
 app.use("/workflows/execute", x402PaymentMiddleware);
 app.use("/attest/:cid", x402PaymentMiddleware);
-app.use("/graph/files", x402PaymentMiddleware);
-app.use("/graph/connections", x402PaymentMiddleware);
-app.use("/graph/agents", x402PaymentMiddleware);
+app.on("POST", "/graph/files", x402PaymentMiddleware);
+app.on("POST", "/graph/connections", x402PaymentMiddleware);
+app.on("POST", "/graph/agents", x402PaymentMiddleware);
+app.on("POST", "/upload/batch", x402PaymentMiddleware);
+
+// SIWE auth middleware (graph reads + deletes)
+app.on("DELETE", "/graph/files/*", siweMiddleware);
+app.on("DELETE", "/graph/connections", siweMiddleware);
+app.on("GET", "/graph/search", siweMiddleware);
+app.on("GET", "/graph/traverse/*", siweMiddleware);
+app.on("GET", "/graph/view", siweMiddleware);
 
 // REST routes
 app.route("/", filesRoute);
