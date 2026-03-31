@@ -28,11 +28,17 @@ w3stor/                          Turborepo monorepo (Bun workspace)
 ├── skills/
 │   └── w3stor/SKILL.md          Claude Code skill definition
 │
-├── Dockerfile                   Multi-stage Bun build
-├── docker-compose.yml           Dev infrastructure (Postgres + Redis)
-├── docker-compose.prod.yml      Prod infrastructure (+ Caddy)
-├── Caddyfile                    Reverse proxy + TLS
-├── deploy.sh                    Deployment script
+├── infra/
+│   ├── Dockerfile                Multi-stage Bun build
+│   ├── docker-compose.yml        Dev infrastructure (Postgres + Redis + Neo4j)
+│   ├── docker-compose.prod.yml   Prod infrastructure (+ Caddy + autoscaler)
+│   ├── Caddyfile                 Reverse proxy + TLS
+│   ├── deploy.ts                 Bun deploy script
+│   ├── deploy.env                Local prod env vars (gitignored)
+│   ├── deploy.env.example        Template with placeholder values
+│   ├── autoscaler.sh             Worker autoscaler sidecar
+│   └── README.md                 Deploy & autoscaler docs
+│
 ├── turbo.json                   Build orchestration
 └── biome.json                   Linting + formatting
 ```
@@ -124,7 +130,7 @@ w3stor/                          Turborepo monorepo (Bun workspace)
 ## Development
 
 ```bash
-docker compose up -d         # Start Postgres + Redis + Neo4j
+docker compose -f infra/docker-compose.yml up -d         # Start Postgres + Redis + Neo4j
 bun install                  # Install all deps
 cp .env.example .env         # Configure credentials (incl. NEO4J_*, OPENAI_API_KEY, SIWE_JWT_SECRET)
 bun run db:migrate           # Run migrations

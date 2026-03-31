@@ -53,13 +53,14 @@ services:
   # --- Application ---
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: infra/Dockerfile
+    image: w3stor-app
     restart: unless-stopped
     command: ["bun", "run", "packages/api/src/index.ts"]
     ports:
       - "${API_PORT:-4000}:4000"
-    env_file: .env.prod
+    env_file: ../.env.prod
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-w3stor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-w3stor}
       REDIS_URL: redis://redis:6379
@@ -75,12 +76,10 @@ services:
       - internal
 
   workers:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: w3stor-app
     restart: unless-stopped
     command: ["bun", "run", "packages/workers/src/index.ts"]
-    env_file: .env.prod
+    env_file: ../.env.prod
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-w3stor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-w3stor}
       REDIS_URL: redis://redis:6379
@@ -96,11 +95,9 @@ services:
 
   # --- DB Migrations (run once, then exit) ---
   migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: w3stor-app
     command: ["bun", "run", "packages/db/src/migrate.ts"]
-    env_file: .env.prod
+    env_file: ../.env.prod
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-w3stor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-w3stor}
     depends_on:
@@ -108,6 +105,32 @@ services:
         condition: service_healthy
     restart: "no"
     profiles: ["migrate"]
+    networks:
+      - internal
+
+  # --- Worker Autoscaler (polls Redis, scales worker replicas) ---
+  autoscaler:
+    image: docker:cli
+    restart: unless-stopped
+    entrypoint: /bin/sh
+    command: ["/autoscaler.sh"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./autoscaler.sh:/autoscaler.sh:ro
+      - ./docker-compose.prod.yml:/compose.yml:ro
+    environment:
+      REDIS_URL: redis://redis:6379
+      AUTOSCALER_MIN_WORKERS: ${AUTOSCALER_MIN_WORKERS:-1}
+      AUTOSCALER_MAX_WORKERS: ${AUTOSCALER_MAX_WORKERS:-4}
+      AUTOSCALER_POLL_INTERVAL: ${AUTOSCALER_POLL_INTERVAL:-30}
+      AUTOSCALER_SCALE_UP_THRESHOLD: ${AUTOSCALER_SCALE_UP_THRESHOLD:-10}
+      AUTOSCALER_SCALE_DOWN_THRESHOLD: ${AUTOSCALER_SCALE_DOWN_THRESHOLD:-3}
+      AUTOSCALER_COOLDOWN: ${AUTOSCALER_COOLDOWN:-60}
+      COMPOSE_FILE: /compose.yml
+      COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME:-w3stor}
+    depends_on:
+      - redis
+      - workers
     networks:
       - internal
 
