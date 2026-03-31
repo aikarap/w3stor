@@ -4,8 +4,13 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 
 export const metadata: Metadata = {
-	title: "Documentation | W3S Agent",
-	description: "Integration guides for REST API, CLI, AI SDK, A2A Protocol, MCP, and more.",
+	title: "Documentation",
+	description: "Integration guides for W3Stor — REST API, CLI, Vercel AI SDK, ElizaOS, Mastra, A2A Protocol, and MCP server setup.",
+	openGraph: {
+		title: "Documentation | W3Stor",
+		description: "Integration guides for W3Stor — REST API, CLI, Vercel AI SDK, ElizaOS, Mastra, A2A Protocol, and MCP server setup.",
+		images: [{ url: "/images/logo-512.png", width: 512, height: 512, alt: "W3Stor" }],
+	},
 };
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {

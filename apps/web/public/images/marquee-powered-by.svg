@@ -1,0 +1,104 @@
+<svg width="800" height="60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .t { animation: s 18s linear infinite; }
+      @keyframes s { 0% { transform: translateX(-1024px); } 100% { transform: translateX(0); } }
+    </style>
+    <symbol id="foc" viewBox="0 0 1000 897">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M450.756 0.00783786C696.155 1.46417 897.499 202.444 895.678 452.215C895.321 502.975 886.412 551.241 870.727 596.664C837.283 560.016 789.586 536.683 736.72 535.386L733.201 535.331C662.086 534.908 600.402 573.984 568.137 631.393C495.132 638.865 438.13 700.538 438.13 775.53L438.143 777.404C438.753 825.592 462.888 868.109 499.589 894.004C482.635 895.932 465.376 896.889 447.843 896.778C200.622 897.87-1.08721 695.433 0.00440998 446.392C1.09666 200.262 202.078-1.4486 450.756 0.00783786ZM614.961 163.487C570.18 161.666 538.139 184.242 513.017 218.83C488.257 253.057 477.334 293.105 465.32 332.791C462.043 344.443 459.129 356.095 455.487 368.836C412.159 362.647 370.29 356.456 327.327 350.266C325.87 361.919 324.414 372.843 322.955 384.495C365.556 391.049 406.335 397.238 448.207 403.789C442.38 427.82 437.281 450.029 431.821 472.604C390.679 466.779 351.356 461.318 312.032 455.858C310.576 468.601 309.121 478.43 307.665 489.717C347.351 495.906 385.582 501.732 423.812 507.557C423.812 511.925 424.538 514.478 423.812 516.661C411.433 568.725 400.145 621.521 386.31 673.224C379.756 697.981 369.195 721.647 348.807 739.123C332.06 753.322 313.488 751.136 300.745 733.297C294.921 725.287 290.188 715.821 282.543 710.358C277.08 706.355 264.701 703.806 260.698 707.083C254.871 712.181 250.502 722.739 250.867 730.749C251.233 737.667 258.146 746.042 264.335 750.775C285.089 766.796 309.852 768.979 334.609 764.246C376.48 755.87 405.97 729.657 424.177 692.883C438.738 664.119 449.299 633.171 459.492 602.221C468.596 574.187 474.786 545.424 482.066 516.298C523.209 522.488 563.261 528.311 604.404 534.136C608.045 522.487 610.957 511.564 614.234 500.277C571.271 493.723 530.129 487.894 488.986 481.705C494.084 457.313 498.451 435.829 503.184 412.163C542.141 417.626 580.374 423.087 619.695 428.549C622.972 416.898 625.884 406.705 629.161 395.053C588.748 389.228 550.153 383.399 508.645 377.21C522.845 327.693 534.86 280.36 549.787 234.12C554.52 218.829 565.808 204.63 577.095 192.616C592.024 177.323 612.413 180.599 625.157 197.71C630.255 204.629 635.35 212.276 641.543 218.466C649.553 226.111 661.566 230.115 669.576 222.47C674.674 217.372 677.952 205.358 675.037 196.983C672.49 190.065 671.034 189.338 668.122 186.061C653.922 170.04 634.988 164.216 614.961 163.487Z" fill="#0090FF"/>
+      <path d="M733.048 561.09C797.876 561.477 854.243 600.331 879.662 656.395H880.825C946.621 656.395 1000 709.734 1000 775.53C1000 841.327 946.661 894.665 880.865 894.666H583.025C517.228 894.665 463.89 841.327 463.89 775.53C463.89 709.734 517.268 656.395 583.065 656.395H584.315C609.868 600.099 666.743 560.695 733.048 561.09Z" fill="white"/>
+      <path d="M880.865 894.666C946.661 894.665 1000 841.327 1000 775.53C1000 709.734 946.621 656.395 880.825 656.395H879.662C854.243 600.331 797.876 561.477 733.048 561.09C666.743 560.695 609.868 600.099 584.315 656.395H583.065C517.268 656.395 463.89 709.734 463.89 775.53C463.89 841.327 517.228 894.665 583.025 894.666H880.865ZM953.634 775.53C953.634 815.72 921.054 848.299 880.865 848.299H583.025C542.835 848.299 510.256 815.72 510.256 775.53L510.278 773.654C511.275 734.351 543.483 702.761 583.065 702.761H614.189L626.536 675.559C644.854 635.2 685.534 607.175 732.771 607.456C778.883 607.731 819.229 635.388 837.434 675.541L849.776 702.761H880.825C921.034 702.761 953.634 735.362 953.634 775.53Z" fill="url(#foc_grad)"/>
+      <linearGradient id="foc_grad" x1="599.5" y1="608" x2="819" y2="895" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#39C1CB"/>
+        <stop offset="1" stop-color="#006FEC"/>
+      </linearGradient>
+    </symbol>
+  </defs>
+  <g class="t">
+    <!--
+      Filecoin  x=0   w=136 end=136
+      FOC       x=150 w=168 end=318
+      IPFS      x=332 w=104 end=436
+      Synapse   x=450 w=170 end=620
+      ERC-8004  x=634 w=152 end=786
+      x402      x=800 w=104 end=904
+      Base      x=918 w=108 end=1026
+      gap=14, but we need the last gap too
+      loop = 1026-16+14 = 1024
+      Actually: loop = last_end - 0 + gap = 1026+14 = but we only need 1 extra gap
+      No. Loop = total span of one set including trailing gap.
+      The set spans from x=0 to end=1026. Add 14px trailing gap = 1040.
+      But that's too big. Let me recalc properly.
+
+      Actually the loop distance = offset between set1 start and set2 start.
+      Set2 starts at the same relative position, so loop = set1_last_end + gap = 1026 + 14 = 1040.
+      But let me keep it tight. Reducing Filecoin to 128.
+
+      Filecoin  x=0   w=128  end=128
+      FOC       x=142 w=160  end=302
+      IPFS      x=316 w=104  end=420
+      Synapse   x=434 w=170  end=604
+      ERC-8004  x=618 w=152  end=770
+      x402      x=784 w=104  end=888
+      Base      x=902 w=108  end=1010
+      loop = 1010 + 14 = 1024
+    -->
+    <!-- SET 1 -->
+    <rect rx="22" ry="22" x="0"   y="8" width="128" height="44" fill="#0090FF" fill-opacity="0.12"/>
+    <circle cx="24"  cy="30" r="7" fill="#0090FF"/>
+    <text x="40"  y="30" fill="#0090FF" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Filecoin</text>
+
+    <rect rx="22" ry="22" x="142" y="8" width="160" height="44" fill="#0090FF" fill-opacity="0.12"/>
+    <use href="#foc" x="154" y="12" width="20" height="36"/>
+    <text x="178" y="30" fill="#0090FF" font-family="-apple-system,system-ui,sans-serif" font-size="15" font-weight="700" dominant-baseline="central">Onchain Cloud</text>
+
+    <rect rx="22" ry="22" x="316" y="8" width="104" height="44" fill="#65C2CB" fill-opacity="0.12"/>
+    <circle cx="340" cy="30" r="7" fill="#65C2CB"/>
+    <text x="356" y="30" fill="#65C2CB" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">IPFS</text>
+
+    <rect rx="22" ry="22" x="434" y="8" width="170" height="44" fill="#0090FF" fill-opacity="0.12"/>
+    <circle cx="458" cy="30" r="7" fill="#0090FF"/>
+    <text x="474" y="30" fill="#0090FF" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Synapse SDK</text>
+
+    <rect rx="22" ry="22" x="618" y="8" width="152" height="44" fill="#627EEA" fill-opacity="0.12"/>
+    <circle cx="642" cy="30" r="7" fill="#627EEA"/>
+    <text x="658" y="30" fill="#627EEA" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">ERC-8004</text>
+
+    <rect rx="22" ry="22" x="784" y="8" width="104" height="44" fill="#00D395" fill-opacity="0.12"/>
+    <circle cx="808" cy="30" r="7" fill="#00D395"/>
+    <text x="824" y="30" fill="#00D395" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">x402</text>
+
+    <rect rx="22" ry="22" x="902" y="8" width="108" height="44" fill="#0052FF" fill-opacity="0.12"/>
+    <circle cx="926" cy="30" r="7" fill="#0052FF"/>
+    <text x="942" y="30" fill="#0052FF" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Base</text>
+
+    <!-- SET 2: every x += 1024 -->
+    <rect rx="22" ry="22" x="1024" y="8" width="128" height="44" fill="#0090FF" fill-opacity="0.12"/>
+    <circle cx="1048" cy="30" r="7" fill="#0090FF"/>
+    <text x="1064" y="30" fill="#0090FF" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Filecoin</text>
+
+    <rect rx="22" ry="22" x="1166" y="8" width="160" height="44" fill="#0090FF" fill-opacity="0.12"/>
+    <use href="#foc" x="1178" y="12" width="20" height="36"/>
+    <text x="1202" y="30" fill="#0090FF" font-family="-apple-system,system-ui,sans-serif" font-size="15" font-weight="700" dominant-baseline="central">Onchain Cloud</text>
+
+    <rect rx="22" ry="22" x="1340" y="8" width="104" height="44" fill="#65C2CB" fill-opacity="0.12"/>
+    <circle cx="1364" cy="30" r="7" fill="#65C2CB"/>
+    <text x="1380" y="30" fill="#65C2CB" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">IPFS</text>
+
+    <rect rx="22" ry="22" x="1458" y="8" width="170" height="44" fill="#0090FF" fill-opacity="0.12"/>
+    <circle cx="1482" cy="30" r="7" fill="#0090FF"/>
+    <text x="1498" y="30" fill="#0090FF" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Synapse SDK</text>
+
+    <rect rx="22" ry="22" x="1642" y="8" width="152" height="44" fill="#627EEA" fill-opacity="0.12"/>
+    <circle cx="1666" cy="30" r="7" fill="#627EEA"/>
+    <text x="1682" y="30" fill="#627EEA" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">ERC-8004</text>
+
+    <rect rx="22" ry="22" x="1808" y="8" width="104" height="44" fill="#00D395" fill-opacity="0.12"/>
+    <circle cx="1832" cy="30" r="7" fill="#00D395"/>
+    <text x="1848" y="30" fill="#00D395" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">x402</text>
+
+    <rect rx="22" ry="22" x="1926" y="8" width="108" height="44" fill="#0052FF" fill-opacity="0.12"/>
+    <circle cx="1950" cy="30" r="7" fill="#0052FF"/>
+    <text x="1966" y="30" fill="#0052FF" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Base</text>
+  </g>
+</svg>

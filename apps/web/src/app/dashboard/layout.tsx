@@ -3,8 +3,9 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { DashboardTabs } from "./tabs";
 
 export const metadata: Metadata = {
-	title: "Dashboard | W3S Agent",
-	description: "Manage your decentralized storage files, workflows, and conversations.",
+	title: "Dashboard",
+	description: "Manage your files stored on Filecoin — track replication status, view storage proofs, and execute multi-agent workflows.",
+	robots: { index: false, follow: false },
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

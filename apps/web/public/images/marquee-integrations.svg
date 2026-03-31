@@ -1,0 +1,67 @@
+<svg width="800" height="60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .t { animation: s 16s linear infinite; }
+      @keyframes s { 0% { transform: translateX(0); } 100% { transform: translateX(-816px); } }
+    </style>
+  </defs>
+  <g class="t">
+    <!--
+      Layout: each pill has 14px gap after it.
+      pill_x = prev_end + 14
+      Dot cx = pill_x + 24
+      Text x = pill_x + 40
+      Set span = last_end + 14 = 816
+    -->
+    <!-- SET 1 -->
+    <rect rx="22" ry="22" x="0"   y="8" width="120" height="44" fill="#000000" fill-opacity="0.12"/>
+    <circle cx="24"  cy="30" r="7" fill="#000000"/>
+    <text x="40"  y="30" fill="#000000" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">AI SDK</text>
+
+    <rect rx="22" ry="22" x="134" y="8" width="120" height="44" fill="#8b5cf6" fill-opacity="0.12"/>
+    <circle cx="158" cy="30" r="7" fill="#8b5cf6"/>
+    <text x="174" y="30" fill="#8b5cf6" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Mastra</text>
+
+    <rect rx="22" ry="22" x="268" y="8" width="128" height="44" fill="#0066ff" fill-opacity="0.12"/>
+    <circle cx="292" cy="30" r="7" fill="#0066ff"/>
+    <text x="308" y="30" fill="#0066ff" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">ElizaOS</text>
+
+    <rect rx="22" ry="22" x="410" y="8" width="152" height="44" fill="#D97706" fill-opacity="0.12"/>
+    <circle cx="434" cy="30" r="7" fill="#D97706"/>
+    <text x="450" y="30" fill="#D97706" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Claude SDK</text>
+
+    <rect rx="22" ry="22" x="576" y="8" width="94"  height="44" fill="#00cc88" fill-opacity="0.12"/>
+    <circle cx="600" cy="30" r="7" fill="#00cc88"/>
+    <text x="616" y="30" fill="#00cc88" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">MCP</text>
+
+    <rect rx="22" ry="22" x="684" y="8" width="118" height="44" fill="#f43f5e" fill-opacity="0.12"/>
+    <circle cx="708" cy="30" r="7" fill="#f43f5e"/>
+    <text x="724" y="30" fill="#f43f5e" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Skills</text>
+    <!-- end=802, +14=816 -->
+
+    <!-- SET 2: every x += 816 -->
+    <rect rx="22" ry="22" x="816"  y="8" width="120" height="44" fill="#000000" fill-opacity="0.12"/>
+    <circle cx="840"  cy="30" r="7" fill="#000000"/>
+    <text x="856"  y="30" fill="#000000" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">AI SDK</text>
+
+    <rect rx="22" ry="22" x="950"  y="8" width="120" height="44" fill="#8b5cf6" fill-opacity="0.12"/>
+    <circle cx="974"  cy="30" r="7" fill="#8b5cf6"/>
+    <text x="990"  y="30" fill="#8b5cf6" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Mastra</text>
+
+    <rect rx="22" ry="22" x="1084" y="8" width="128" height="44" fill="#0066ff" fill-opacity="0.12"/>
+    <circle cx="1108" cy="30" r="7" fill="#0066ff"/>
+    <text x="1124" y="30" fill="#0066ff" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">ElizaOS</text>
+
+    <rect rx="22" ry="22" x="1226" y="8" width="152" height="44" fill="#D97706" fill-opacity="0.12"/>
+    <circle cx="1250" cy="30" r="7" fill="#D97706"/>
+    <text x="1266" y="30" fill="#D97706" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Claude SDK</text>
+
+    <rect rx="22" ry="22" x="1392" y="8" width="94"  height="44" fill="#00cc88" fill-opacity="0.12"/>
+    <circle cx="1416" cy="30" r="7" fill="#00cc88"/>
+    <text x="1432" y="30" fill="#00cc88" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">MCP</text>
+
+    <rect rx="22" ry="22" x="1500" y="8" width="118" height="44" fill="#f43f5e" fill-opacity="0.12"/>
+    <circle cx="1524" cy="30" r="7" fill="#f43f5e"/>
+    <text x="1540" y="30" fill="#f43f5e" font-family="-apple-system,system-ui,sans-serif" font-size="18" font-weight="700" dominant-baseline="central">Skills</text>
+  </g>
+</svg>

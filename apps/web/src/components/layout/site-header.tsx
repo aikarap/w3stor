@@ -2,6 +2,7 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -23,8 +24,7 @@ export function SiteHeader() {
 		<header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
 			<div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
 				<Link href="/" className="flex items-center gap-2 font-bold text-lg">
-					<span className="text-primary">w3stor</span>
-					<span className="text-muted-foreground font-normal text-xs">agent</span>
+					<Image src="/images/nav-icon-transparent.png" alt="W3Stor" width={150} height={30} />
 				</Link>
 
 				<nav className="hidden items-center gap-1 md:flex">
