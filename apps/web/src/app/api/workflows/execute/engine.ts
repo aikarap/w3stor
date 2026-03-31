@@ -132,17 +132,6 @@ async function executeAgentNode(
 		};
 	}
 
-	if (category === "video") {
-		return {
-			output: {
-				type: "video",
-				status: "unsupported",
-				message: `Video generation (${modelDef?.label}) is not yet supported in the execution engine.`,
-			},
-			durationMs: Date.now() - start,
-		};
-	}
-
 	// LLM text generation
 	const result = await generateText({
 		model: gateway(gatewayId),

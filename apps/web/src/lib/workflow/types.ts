@@ -1,6 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 
-export type ModelCategory = "llm" | "image" | "multimodal" | "video";
+export type ModelCategory = "llm" | "image" | "multimodal";
 
 export interface ModelDefinition {
 	id: string;

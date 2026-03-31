@@ -9,7 +9,6 @@ import {
 	Loader2,
 	MessageSquare,
 	Pencil,
-	VideoIcon,
 	XCircle,
 } from "lucide-react";
 import { memo, useCallback } from "react";
@@ -24,7 +23,6 @@ const categoryIcon: Record<string, React.ElementType> = {
 	llm: MessageSquare,
 	image: ImageIcon,
 	multimodal: Bot,
-	video: VideoIcon,
 };
 
 export const AgentNode = memo(
