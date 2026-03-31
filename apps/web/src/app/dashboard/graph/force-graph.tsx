@@ -1,9 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useMemo } from "react";
+import * as THREE from "three";
 
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
+const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), {
 	ssr: false,
 });
 
@@ -36,9 +37,9 @@ interface ForceGraphProps {
 	height?: number;
 }
 
-const NODE_COLORS: Record<string, string> = {
-	Agent: "#6c63ff",
-	File: "#2ecc71",
+const NODE_COLORS: Record<string, number> = {
+	Agent: 0x6c63ff,
+	File: 0x2ecc71,
 };
 
 const EDGE_COLORS: Record<string, string> = {
@@ -63,6 +64,29 @@ function getEdgeColor(relationship: string): string {
 	return EDGE_COLORS[relationship] ?? EDGE_COLORS.DEFAULT;
 }
 
+function makeTextSprite(text: string, size: number, color: string): THREE.Sprite {
+	const canvas = document.createElement("canvas");
+	const ctx = canvas.getContext("2d")!;
+	const fontSize = 64;
+	ctx.font = `bold ${fontSize}px sans-serif`;
+	const metrics = ctx.measureText(text);
+	canvas.width = Math.ceil(metrics.width) + 16;
+	canvas.height = fontSize + 16;
+	// re-set font after resize
+	ctx.font = `bold ${fontSize}px sans-serif`;
+	ctx.fillStyle = color;
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+	const texture = new THREE.CanvasTexture(canvas);
+	texture.minFilter = THREE.LinearFilter;
+	const material = new THREE.SpriteMaterial({ map: texture, depthWrite: false, transparent: true });
+	const sprite = new THREE.Sprite(material);
+	sprite.scale.set(size * (canvas.width / canvas.height), size, 1);
+	return sprite;
+}
+
 export function ForceGraph({ nodes, edges, onNodeClick, width, height }: ForceGraphProps) {
 	const fgRef = useRef<any>(null);
 
@@ -75,26 +99,66 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height }: ForceGr
 		[onNodeClick],
 	);
 
-	const graphData = {
-		nodes: nodes.map((n) => ({ ...n })),
-		links: edges.map((e) => ({
-			source: e.source,
-			target: e.target,
-			relationship: e.relationship,
-			id: e.id,
-		})),
-	};
+	const graphData = useMemo(
+		() => ({
+			nodes: nodes.map((n) => ({ ...n })),
+			links: edges.map((e) => ({
+				source: e.source,
+				target: e.target,
+				relationship: e.relationship,
+				id: e.id,
+			})),
+		}),
+		[nodes, edges],
+	);
 
 	return (
-		<ForceGraph2D
+		<ForceGraph3D
 			ref={fgRef}
 			graphData={graphData}
 			width={width}
 			height={height}
-			backgroundColor="transparent"
-			nodeRelSize={1}
-			nodeVal={(node: any) => getNodeRadius(node) * 2}
-			nodeColor={(node: any) => NODE_COLORS[node.type] ?? "#64748b"}
+			backgroundColor="rgba(0,0,0,0)"
+			nodeThreeObject={(node: any) => {
+				const n = node as GraphNode;
+				const r = getNodeRadius(n);
+				const color = NODE_COLORS[n.type] ?? 0x64748b;
+
+				const group = new THREE.Group();
+
+				// Sphere
+				const geometry = new THREE.SphereGeometry(r, 24, 24);
+				const material = new THREE.MeshLambertMaterial({
+					color,
+					transparent: true,
+					opacity: 0.85,
+				});
+				const sphere = new THREE.Mesh(geometry, material);
+				group.add(sphere);
+
+				// Glow ring
+				const ringGeo = new THREE.RingGeometry(r + 1, r + 2.5, 32);
+				const ringMat = new THREE.MeshBasicMaterial({
+					color,
+					transparent: true,
+					opacity: 0.25,
+					side: THREE.DoubleSide,
+				});
+				const ring = new THREE.Mesh(ringGeo, ringMat);
+				group.add(ring);
+
+				// Type letter inside node
+				const letter = makeTextSprite(n.type === "Agent" ? "A" : "F", r * 0.8, "white");
+				group.add(letter);
+
+				// Label below node
+				const label = n.label.length > 20 ? `${n.label.slice(0, 20)}…` : n.label;
+				const sprite = makeTextSprite(label, 4, "#e2e8f0");
+				sprite.position.y = -(r + 6);
+				group.add(sprite);
+
+				return group;
+			}}
 			nodeLabel={(node: any) => {
 				const n = node as GraphNode;
 				const parts = [n.label];
@@ -104,46 +168,7 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height }: ForceGr
 					const kb = n.sizeBytes / 1024;
 					parts.push(kb > 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb.toFixed(0)} KB`);
 				}
-				return parts.join("\n");
-			}}
-			nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-				const n = node as GraphNode & { x: number; y: number };
-				const r = getNodeRadius(n);
-				const fontSize = Math.max(10 / globalScale, 3);
-
-				// Draw node circle
-				ctx.beginPath();
-				ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
-				ctx.fillStyle = NODE_COLORS[n.type] ?? "#64748b";
-				ctx.globalAlpha = 0.85;
-				ctx.fill();
-				ctx.globalAlpha = 0.4;
-				ctx.strokeStyle = NODE_COLORS[n.type] ?? "#64748b";
-				ctx.lineWidth = 2 / globalScale;
-				ctx.stroke();
-				ctx.globalAlpha = 1;
-
-				// Draw label below
-				const label = n.label.length > 20 ? `${n.label.slice(0, 20)}…` : n.label;
-				ctx.font = `${fontSize}px sans-serif`;
-				ctx.fillStyle = "#e2e8f0";
-				ctx.textAlign = "center";
-				ctx.textBaseline = "top";
-				ctx.fillText(label, n.x, n.y + r + 2);
-
-				// Type letter inside node
-				ctx.font = `bold ${Math.max(r * 0.8, fontSize)}px sans-serif`;
-				ctx.fillStyle = "white";
-				ctx.textAlign = "center";
-				ctx.textBaseline = "middle";
-				ctx.fillText(n.type === "Agent" ? "A" : "F", n.x, n.y);
-			}}
-			nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
-				const r = getNodeRadius(node as GraphNode);
-				ctx.beginPath();
-				ctx.arc(node.x, node.y, r + 2, 0, 2 * Math.PI);
-				ctx.fillStyle = color;
-				ctx.fill();
+				return parts.join("<br/>");
 			}}
 			linkColor={(link: any) => getEdgeColor(link.relationship)}
 			linkWidth={1.5}
@@ -151,6 +176,7 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height }: ForceGr
 			linkDirectionalArrowRelPos={1}
 			linkLabel={(link: any) => link.relationship}
 			linkCurvature={0.15}
+			linkOpacity={0.6}
 			onNodeClick={handleNodeClick}
 			d3AlphaDecay={0.02}
 			d3VelocityDecay={0.3}
