@@ -20,7 +20,7 @@ const BatchMetadataSchema = z.object({
 });
 
 const MAX_FILES = 10;
-const MAX_SIZE_BYTES = 100 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 0.4 * 1024 * 1024 * 1024; // 0.4 GiB per file
 const MAX_CONNECTIONS = 50;
 
 export const batchUploadRoute = new Hono();
@@ -50,7 +50,12 @@ batchUploadRoute.post("/batch-upload", async (c) => {
 
     if (files.length === 0) return c.json({ error: "No files provided" }, 400);
     if (files.length > MAX_FILES) return c.json({ error: `Max ${MAX_FILES} files per batch` }, 400);
-    if (totalSize > MAX_SIZE_BYTES) return c.json({ error: `Max 100MB per batch` }, 400);
+
+    for (const { index, file } of files) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        return c.json({ error: `File at index ${index} exceeds 0.4 GiB limit` }, 400);
+      }
+    }
 
     // Validate declared counts match actual
     const declaredFiles = parseInt(c.req.header("x-batch-files") || "0", 10);

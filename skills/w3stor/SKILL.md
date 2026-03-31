@@ -39,7 +39,7 @@ The CLI always connects to `https://api.w3stor.xyz` — no server URL configurat
 |-------|-------|-------|
 | **Minimum** | 127 bytes | PieceCIDv2 calculation requires at least 127 bytes payload |
 | **Maximum** | ~1 GiB (1,065,353,216 bytes) | 1 GiB * 127/128 — Filecoin sector alignment |
-| **Batch max** | 100 MB total, 10 files | Per batch upload request |
+| **Batch max** | 10 files, 0.4 GiB per file | Per batch upload request |
 
 ## Pricing
 
@@ -206,7 +206,7 @@ w3stor graph search "transformer training data"
 
 ### Batch Upload
 
-Upload multiple files with graph connections in a single x402 payment. Supports up to 10 files (100MB total) with up to 50 connections per batch. Files can reference each other by index or existing CIDs.
+Upload multiple files with graph connections in a single x402 payment. Supports up to 10 files (0.4 GiB each) with up to 50 connections per batch. Files can reference each other by index or existing CIDs.
 
 ```sh
 # Upload two files with metadata and connections
