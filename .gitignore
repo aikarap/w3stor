@@ -64,4 +64,6 @@ temp/
 /a2a-js/
 /x402/
 
-/a-feature
+.superpowers/
+.worktrees/
+docs/

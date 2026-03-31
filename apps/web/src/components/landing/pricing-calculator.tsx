@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import {
 	pricingAgentsAtom,
+	pricingMemoryOpsAtom,
 	pricingRuntimeMinAtom,
 	pricingStorageMBAtom,
 	pricingTotalAtom,
@@ -62,10 +63,12 @@ export function PricingCalculator() {
 	const [agents, setAgents] = useAtom(pricingAgentsAtom);
 	const [runtime, setRuntime] = useAtom(pricingRuntimeMinAtom);
 	const [storage, setStorage] = useAtom(pricingStorageMBAtom);
+	const [memoryOps, setMemoryOps] = useAtom(pricingMemoryOpsAtom);
 	const [total] = useAtom(pricingTotalAtom);
 
 	const compute = agents * runtime * 0.014;
 	const storageCost = storage * 0.0001;
+	const memoryCost = memoryOps * (0.6 * 0.00005 + 0.4 * 0.00002);
 
 	return (
 		<section className="mx-auto max-w-3xl px-4 py-24">
@@ -73,7 +76,7 @@ export function PricingCalculator() {
 				<div className="mb-10 text-center">
 					<h2 className="text-3xl font-bold">Unified Pricing</h2>
 					<p className="mt-3 max-w-xl mx-auto text-muted-foreground">
-						Compute + storage in one number. Know the cost before execution.
+						Compute + storage + memory in one number. Know the cost before execution.
 					</p>
 				</div>
 			</BlurFade>
@@ -126,12 +129,21 @@ export function PricingCalculator() {
 								step={1}
 								unit="MB"
 							/>
+							<Slider
+								label="Memory ops"
+								value={memoryOps}
+								onChange={setMemoryOps}
+								min={0}
+								max={500}
+								step={10}
+								unit="ops"
+							/>
 						</div>
 
 						{/* Breakdown */}
-						<div className="grid grid-cols-2 gap-4 rounded-xl border border-border/40 bg-muted/30 p-4">
+						<div className="grid grid-cols-3 gap-4 rounded-xl border border-border/40 bg-muted/30 p-4">
 							<div className="text-center">
-								<p className="text-xs text-muted-foreground mb-1">Compute cost</p>
+								<p className="text-xs text-muted-foreground mb-1">Compute</p>
 								<p className="font-mono text-sm font-semibold">
 									{compute.toFixed(4)}{" "}
 									<span className="text-muted-foreground font-normal">USDFC</span>
@@ -139,12 +151,20 @@ export function PricingCalculator() {
 								<p className="text-[10px] text-muted-foreground/60 mt-0.5">$0.014 / agent·min</p>
 							</div>
 							<div className="text-center">
-								<p className="text-xs text-muted-foreground mb-1">Storage cost</p>
+								<p className="text-xs text-muted-foreground mb-1">Storage</p>
 								<p className="font-mono text-sm font-semibold">
 									{storageCost.toFixed(4)}{" "}
 									<span className="text-muted-foreground font-normal">USDFC</span>
 								</p>
 								<p className="text-[10px] text-muted-foreground/60 mt-0.5">$0.0001 / MB</p>
+							</div>
+							<div className="text-center">
+								<p className="text-xs text-muted-foreground mb-1">Memory</p>
+								<p className="font-mono text-sm font-semibold">
+									{memoryCost.toFixed(4)}{" "}
+									<span className="text-muted-foreground font-normal">USDFC</span>
+								</p>
+								<p className="text-[10px] text-muted-foreground/60 mt-0.5">$0.00005 / add · $0.00002 / connect</p>
 							</div>
 						</div>
 					</CardContent>

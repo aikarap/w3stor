@@ -20,11 +20,30 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  neo4j:
+    image: neo4j:5-community
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in .env}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER:-neo4j}", "-p", "${NEO4J_PASSWORD}", "RETURN 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,6 +69,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      neo4j:
+        condition: service_healthy
     networks:
       - internal
 
@@ -67,6 +88,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      neo4j:
         condition: service_healthy
     networks:
       - internal
@@ -107,6 +130,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  neo4j_data:
   caddy_data:
   caddy_config:
 

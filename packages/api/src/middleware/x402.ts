@@ -1,4 +1,5 @@
 import {
+	calculateBatchPrice,
 	calculateOperationPrice,
 	calculateUploadCost,
 	getResourceServer,
@@ -56,6 +57,42 @@ async function getHTTPResourceServer(): Promise<x402HTTPResourceServer> {
 				price: calculateOperationPrice("workflow-execute"),
 			},
 			description: "Execute a storage workflow",
+		},
+		"POST /graph/files": {
+			accepts: {
+				scheme: "exact",
+				network,
+				payTo,
+				price: calculateOperationPrice("graph-add-file"),
+			},
+			description: "Add file to knowledge graph",
+		},
+		"POST /graph/connections": {
+			accepts: {
+				scheme: "exact",
+				network,
+				payTo,
+				price: calculateOperationPrice("graph-connect"),
+			},
+			description: "Connect files in knowledge graph",
+		},
+		"POST /graph/agents": {
+			accepts: {
+				scheme: "exact",
+				network,
+				payTo,
+				price: calculateOperationPrice("graph-connect"),
+			},
+			description: "Connect to another agent",
+		},
+		"POST /batch-upload": {
+			accepts: {
+				scheme: "exact",
+				network,
+				payTo,
+				price: calculateOperationPrice("graph-add-file"),
+			},
+			description: "Batch file upload with graph integration",
 		},
 	};
 
@@ -151,6 +188,7 @@ export const x402PaymentMiddleware = createMiddleware(async (c: Context, next: N
 	}
 
 	if (result.type === "payment-error") {
+		logger.warn("x402: payment error", { status: result.response.status, body: result.response.body, path: requestContext.path });
 		// Return the 402 response with payment requirements headers
 		const { status, headers: respHeaders, body, isHtml } = result.response;
 		const headerInit: Record<string, string> = {};

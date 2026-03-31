@@ -5,11 +5,11 @@
 </p>
 
 <p align="center" style="margin: 20px 0;">
-  <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=500&size=22&pause=100&color=888888&center=true&vCenter=true&repeat=false&width=620&height=30&lines=Permanent.+Verifiable.+Agent-Native." alt="Permanent. Verifiable. Agent-Native." />
+  <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=500&size=22&pause=100&color=888888&center=true&vCenter=true&repeat=false&width=620&height=30&lines=Persistent.+Verifiable.+Intelligent." alt="Persistent. Verifiable. Intelligent." />
 </p>
 
 <p align="center" style="margin: 20px 0;">
-  <strong>Decentralized storage for AI agents</strong> — powered by Filecoin, paid with x402 micropayments.
+  <strong>Decentralized memory &amp; storage for AI agents</strong> — powered by Filecoin, structured by agent memory graphs, paid with x402 micropayments.
 </p>
 
 <p align="center" style="margin: 20px 0;">
@@ -31,16 +31,16 @@
 </p>
 
 <p align="center">
-  <a href="#how-it-works">How It Works</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#quick-start">Quick Start</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#agent-skill">Agent Skill</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#integrations">Integrations</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#api">API</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#architecture">Architecture</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#roadmap">Roadmap</a>
+  <a href="#how-it-works">How It Works</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#agent-memory">Agent Memory</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#quick-start">Quick Start</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#agent-skill">Agent Skill</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#integrations">Integrations</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#api">API</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#architecture">Architecture</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="#roadmap">Roadmap</a>
 </p>
 
 <br />
 
 ## Why
 
-AI agents generate valuable data every second — research, analysis, generated assets, decision logs. Today it all lands in centralized buckets that can disappear, get censored, or price-gouge.
+AI agents generate valuable data every second — research, analysis, generated assets, decision logs. Today it all lands in centralized buckets that can disappear, get censored, or price-gouge. Worse, agents can't *find* what they've stored — files are dumped into flat namespaces with no structure, no relationships, no memory.
 
-> **Agents deserve permanent, verifiable, decentralized storage. W3Stor makes it one API call.**
+> **Agents deserve persistent, verifiable, intelligent memory. W3Stor makes it one API call.**
 
 <br />
 
@@ -66,6 +66,48 @@ Upload a file. Get a CID instantly. Replicated across 4 Storage Providers. Verif
 
 <br />
 
+## Agent Memory
+
+Every agent gets a **sovereign memory graph** — a private namespace of files and relationships, searchable by meaning.
+
+```mermaid
+graph LR
+    A[Agent Wallet] -->|HAS_FILE| F1[research.pdf]
+    A -->|HAS_FILE| F2[dataset.csv]
+    A -->|HAS_FILE| F3[summary.md]
+    F1 -->|references| F2
+    F3 -->|summarizes| F1
+    F3 -->|derived_from| F2
+
+    style A fill:#8b5cf6,stroke:none,color:#fff
+    style F1 fill:#00cc88,stroke:none,color:#fff
+    style F2 fill:#00cc88,stroke:none,color:#fff
+    style F3 fill:#00cc88,stroke:none,color:#fff
+```
+
+- **Sovereign namespaces** — each wallet owns its own graph. No cross-agent leakage.
+- **Freeform relationships** — agents define their own edge labels (`references`, `contradicts`, `derived_from`, ...)
+- **Semantic search** — vector embeddings on file metadata, cosine similarity via Neo4j
+- **Graph traversal** — explore connected files by hops and relationship type
+- **Batch ingestion** — upload multiple files with connections in a single x402 payment
+- **Non-blocking** — memory ingestion never blocks uploads. Files are stored even if the graph layer is down.
+
+```bash
+# Add a file to your agent memory
+w3stor graph add bafkrei... --description "Q3 analysis" --tags "finance,quarterly"
+
+# Connect files with relationships
+w3stor graph connect bafkreiA bafkreiB --rel "references"
+
+# Semantic search across your files
+w3stor graph search "quarterly financial analysis"
+
+# Explore connected files
+w3stor graph traverse bafkreiA --depth 3
+```
+
+<br />
+
 <table>
   <thead>
     <tr>
@@ -82,6 +124,7 @@ Upload a file. Get a CID instantly. Replicated across 4 Storage Providers. Verif
     <tr><td><strong>Agent-ready</strong></td><td>REST only</td><td>No standard</td><td><strong>AI SDK / ElizaOS / Mastra / MCP / A2A</strong></td></tr>
     <tr><td><strong>Verifiable</strong></td><td>Trust the provider</td><td>Content-addressed</td><td><strong>On-chain attestation</strong></td></tr>
     <tr><td><strong>Cost</strong></td><td>$0.023/GB/mo</td><td>Free*</td><td><strong>$0.001/MB — one-time</strong></td></tr>
+    <tr><td><strong>Memory</strong></td><td>None</td><td>None</td><td><strong>Agent memory graphs + semantic search</strong></td></tr>
   </tbody>
 </table>
 
@@ -153,6 +196,12 @@ The skill exposes all W3Stor capabilities — upload, list, status, attest, wall
 | `w3stor files` | List uploaded files | No |
 | `w3stor status <cid>` | Check replication across SPs | No |
 | `w3stor attest <cid>` | Get cryptographic storage attestation | Yes |
+| `w3stor graph add <cid>` | Add file to agent memory | Yes |
+| `w3stor graph connect` | Create file-to-file relationship | Yes |
+| `w3stor graph search <query>` | Semantic search across your files | No |
+| `w3stor graph traverse <cid>` | Explore connected files | No |
+| `w3stor graph remove <cid>` | Remove file from graph | No |
+| `w3stor auth login` | SIWE session auth for graph ops | No |
 | `w3stor wallet balance` | Check USDC balance (Base Sepolia) | No |
 | `w3stor wallet address` | Show configured wallet address | No |
 | `w3stor health` | Check server + service health | No |
@@ -333,6 +382,14 @@ graph LR
 | `POST` | `/workflows/:id/execute` | x402 | Execute workflow |
 | `POST` | `/a2a/jsonrpc` | | A2A JSON-RPC |
 | `GET` | `/.well-known/agent-card.json` | | A2A agent discovery |
+| `POST` | `/graph/files` | x402 | Add file to agent memory |
+| `POST` | `/graph/connections` | x402 | Create file relationship |
+| `GET` | `/graph/search` | SIWE | Semantic search across memory |
+| `GET` | `/graph/traverse/:cid` | SIWE | Graph traversal from file |
+| `GET` | `/graph/view` | SIWE | Full memory graph (dashboard) |
+| `POST` | `/upload/batch` | x402 | Batch upload with graph connections |
+| `POST` | `/auth/siwe/nonce` | | Get SIWE auth nonce |
+| `POST` | `/auth/siwe/verify` | | Verify SIWE signature, get JWT |
 | `GET` | `/health` | | Service health |
 | `GET` | `/metrics` | | Prometheus metrics |
 
@@ -370,6 +427,11 @@ graph TB
         PAY["x402 Payments\nUSDC on Base Sepolia"]
     end
 
+    subgraph Memory ["Agent Memory — Neo4j"]
+        GR["Knowledge Graph\nPer-agent namespaces"]
+        VEC["Vector Search\nSemantic embeddings"]
+    end
+
     subgraph Infra
         PG[(PostgreSQL)]
         RD[(Redis)]
@@ -378,6 +440,7 @@ graph TB
 
     CLI & Web & SDK & MCP & A2A --> API
     API --> FC & PIN & PAY
+    API --> GR & VEC
     API --> PG & RD
     FC & PIN & PAY --> BM
     BM --> PG & RD
@@ -390,6 +453,8 @@ graph TB
     style FC fill:#f59e0b,stroke:none,color:#fff
     style PIN fill:#00cc88,stroke:none,color:#fff
     style PAY fill:#8b5cf6,stroke:none,color:#fff
+    style GR fill:#ec4899,stroke:none,color:#fff
+    style VEC fill:#ec4899,stroke:none,color:#fff
     style PG fill:#334155,stroke:none,color:#fff
     style RD fill:#334155,stroke:none,color:#fff
     style BM fill:#334155,stroke:none,color:#fff
@@ -403,7 +468,8 @@ graph TB
 apps/web              Next.js dashboard + docs + workflows
 packages/shared       Types, config, logger, errors
 packages/db           Drizzle ORM, queries, migrations
-packages/modules      Filecoin, Pinata, x402, queue
+packages/graph        Agent memory — Neo4j knowledge graphs + vector search
+packages/modules      Filecoin, Pinata, x402, SIWE, queue
 packages/sdk          AI SDK + ElizaOS + Mastra + A2A  →  npm
 packages/api          Hono API server
 packages/workers      BullMQ background jobs
@@ -428,12 +494,16 @@ packages/cli          CLI + MCP server  →  npm
 - [x] Real-time SSE status updates
 - [x] CLI with agent-friendly output
 - [x] Web dashboard — [w3stor.xyz](https://w3stor.xyz)
+- [x] Agent Memory — per-agent knowledge graphs with semantic search
+- [x] SIWE session auth + batch uploads with graph connections
+- [x] Interactive memory graph visualization (dashboard)
 
 **Next**
 
 - [ ] Filecoin mainnet
 - [ ] Multi-chain x402 payments
 - [ ] ERC-8004 on-chain agent registry
+- [ ] Lit Protocol validator network — stake/slash SLAs backed by Filecoin Onchain Cloud on-chain guarantees
 - [ ] Claude SDK tool plugin
 - [ ] Production attestation certificates
 

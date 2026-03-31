@@ -53,8 +53,9 @@ export default function DocsPage() {
 				<div className="space-y-4">
 					<h1 className="text-4xl font-bold tracking-tight">Documentation</h1>
 					<p className="max-w-2xl text-lg text-muted-foreground">
-						Decentralized storage for AI agents. Upload to IPFS instantly, replicate across Filecoin
-						SPs permanently. Pay per request with x402 micropayments.
+						Persistent agent memory and decentralized storage. Upload to IPFS instantly, replicate
+						across Filecoin SPs permanently, build knowledge graphs with semantic search. Pay per
+						request with x402 micropayments.
 					</p>
 				</div>
 			</BlurFade>
@@ -79,8 +80,8 @@ export default function DocsPage() {
 				<section className="space-y-6">
 					<h2 className="text-2xl font-semibold">REST API</h2>
 					<p className="text-muted-foreground">
-						Four endpoints power the entire storage lifecycle. Endpoints marked x402 require
-						micropayment.
+						Storage, agent memory, and auth endpoints power the entire lifecycle. Endpoints marked
+						x402 require micropayment. Agent memory reads require a SIWE JWT session.
 					</p>
 
 					<div className="space-y-4">
@@ -227,9 +228,191 @@ export default function DocsPage() {
 								},
 							]}
 						/>
-					</div>
-				</section>
-			</BlurFade>
+
+							<SchemaDisplay
+								method="POST"
+								path="/graph/files"
+								description="Add a file to your agent memory graph. Generates semantic embeddings from metadata. Requires x402 payment."
+								requestBody={[
+									{
+										name: "cid",
+										type: "string",
+										required: true,
+										description: "CID of the file to add",
+									},
+									{
+										name: "description",
+										type: "string",
+										description: "Description for semantic search",
+									},
+									{
+										name: "tags",
+										type: "string[]",
+										description: "Tags for organization and search",
+									},
+								]}
+								responseBody={[
+									{
+										name: "success",
+										type: "boolean",
+										required: true,
+										description: "Whether the file was added",
+									},
+									{
+										name: "node",
+										type: "object",
+										required: true,
+										description: "The created graph node",
+									},
+								]}
+							/>
+
+							<SchemaDisplay
+								method="POST"
+								path="/graph/connections"
+								description="Create a relationship between two files in your memory graph. Requires x402 payment."
+								requestBody={[
+									{
+										name: "fromCid",
+										type: "string",
+										required: true,
+										description: "Source file CID",
+									},
+									{
+										name: "toCid",
+										type: "string",
+										required: true,
+										description: "Target file CID",
+									},
+									{
+										name: "relationship",
+										type: "string",
+										required: true,
+										description: "Freeform label (e.g. references, derived_from)",
+									},
+								]}
+								responseBody={[
+									{
+										name: "success",
+										type: "boolean",
+										required: true,
+										description: "Whether the connection was created",
+									},
+									{
+										name: "edge",
+										type: "object",
+										required: true,
+										description: "The created graph edge",
+									},
+								]}
+							/>
+
+							<SchemaDisplay
+								method="GET"
+								path="/graph/search"
+								description="Semantic search across your agent memory. Requires SIWE JWT auth."
+								parameters={[
+									{
+										name: "q",
+										type: "string",
+										required: true,
+										location: "query",
+										description: "Natural language search query",
+									},
+									{
+										name: "limit",
+										type: "number",
+										location: "query",
+										description: "Max results (default: 10)",
+									},
+									{
+										name: "threshold",
+										type: "number",
+										location: "query",
+										description: "Similarity threshold 0-1 (default: 0.5)",
+									},
+								]}
+								responseBody={[
+									{
+										name: "results",
+										type: "array",
+										required: true,
+										description: "Array of {cid, filename, score, gatewayUrl}",
+									},
+								]}
+							/>
+
+							<SchemaDisplay
+								method="GET"
+								path="/graph/traverse/{cid}"
+								description="Traverse connected files from a starting point. Requires SIWE JWT auth."
+								parameters={[
+									{
+										name: "cid",
+										type: "string",
+										required: true,
+										location: "path",
+										description: "Starting file CID",
+									},
+									{
+										name: "depth",
+										type: "number",
+										location: "query",
+										description: "Max traversal depth (default: 2)",
+									},
+								]}
+								responseBody={[
+									{
+										name: "nodes",
+										type: "array",
+										required: true,
+										description: "Discovered file nodes",
+									},
+									{
+										name: "edges",
+										type: "array",
+										required: true,
+										description: "Relationships between nodes",
+									},
+								]}
+							/>
+
+							<SchemaDisplay
+								method="POST"
+								path="/upload/batch"
+								description="Upload multiple files with graph connections in one x402 payment. Max 10 files, 100MB total, 50 connections."
+								requestBody={[
+									{
+										name: "file_0...file_N",
+										type: "File",
+										required: true,
+										description: "Files as multipart form fields",
+									},
+									{
+										name: "metadata",
+										type: "string",
+										required: true,
+										description: "JSON with per-file descriptions, tags, and connections",
+									},
+								]}
+								responseBody={[
+									{
+										name: "files",
+										type: "array",
+										required: true,
+										description: "Array of uploaded files with CIDs and graph status",
+									},
+									{
+										name: "connections",
+										type: "array",
+										required: true,
+										description: "Created graph connections with success status",
+									},
+								]}
+							/>
+						</div>
+					</section>
+				</BlurFade>
 
 			{/* Integration Cards */}
 			<BlurFade delay={0.2}>

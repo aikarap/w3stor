@@ -113,6 +113,12 @@ const allCommands = [
 	{ cmd: "w3stor files", desc: "List stored files", paid: false },
 	{ cmd: "w3stor status <cid>", desc: "Check replication status", paid: false },
 	{ cmd: "w3stor attest <cid>", desc: "Create on-chain attestation", paid: true },
+	{ cmd: "w3stor auth login", desc: "SIWE session auth for graph reads", paid: false },
+	{ cmd: "w3stor graph add <cid>", desc: "Add file to agent memory", paid: true },
+	{ cmd: "w3stor graph connect <from> <to>", desc: "Create file relationship", paid: true },
+	{ cmd: "w3stor graph search <query>", desc: "Semantic search across files", paid: false },
+	{ cmd: "w3stor graph traverse <cid>", desc: "Explore connected files", paid: false },
+	{ cmd: "w3stor graph remove <cid>", desc: "Remove file from memory graph", paid: false },
 	{ cmd: "w3stor wallet balance", desc: "Show wallet balances", paid: false },
 	{ cmd: "w3stor wallet fund", desc: "Fund wallet with USDC", paid: false },
 	{ cmd: "w3stor --mcp", desc: "Start as MCP server", paid: false },
@@ -168,6 +174,44 @@ const agentTools: Tool[] = [
 			required: ["cid"],
 		}),
 	},
+	{
+		type: "function" as const,
+		description: "graph_add_file — Add file to agent memory with embeddings (x402)",
+		inputSchema: jsonSchema({
+			type: "object",
+			properties: {
+				cid: { type: "string", description: "CID of file to add" },
+				description: { type: "string", description: "Description for semantic search" },
+				tags: { type: "array", items: { type: "string" }, description: "Tags for organization" },
+			},
+			required: ["cid"],
+		}),
+	},
+	{
+		type: "function" as const,
+		description: "graph_search — Semantic search across agent memory (SIWE)",
+		inputSchema: jsonSchema({
+			type: "object",
+			properties: {
+				query: { type: "string", description: "Natural language search query" },
+				limit: { type: "number", description: "Max results", default: 10 },
+			},
+			required: ["query"],
+		}),
+	},
+	{
+		type: "function" as const,
+		description: "graph_connect_files — Create relationship between files (x402)",
+		inputSchema: jsonSchema({
+			type: "object",
+			properties: {
+				fromCid: { type: "string", description: "Source file CID" },
+				toCid: { type: "string", description: "Target file CID" },
+				relationship: { type: "string", description: "Edge label (e.g. references, derived_from)" },
+			},
+			required: ["fromCid", "toCid", "relationship"],
+		}),
+	},
 ];
 
 export default function CLIPage() {
@@ -183,8 +227,9 @@ export default function CLIPage() {
 						</Badge>
 					</div>
 					<p className="max-w-2xl text-lg text-muted-foreground">
-						A command-line tool for decentralized storage. Upload files, manage replications, and
-						run as an MCP server for AI assistants -- all from your terminal.
+						A command-line tool for decentralized agent memory and storage. Upload files, build
+						knowledge graphs, semantic search, manage replications, and run as an MCP server for AI
+						assistants -- all from your terminal.
 					</p>
 				</div>
 			</BlurFade>

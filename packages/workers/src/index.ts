@@ -24,8 +24,13 @@ import {
 	validateConfig,
 } from "@w3stor/shared";
 import { type Job, Worker } from "bullmq";
+import { initializeIndexes } from "@w3stor/graph";
 
 validateConfig();
+
+initializeIndexes().catch((err) => {
+	logger.warn("Neo4j index initialization failed", { error: err instanceof Error ? err.message : String(err) });
+});
 
 async function processFilecoinUpload(job: Job<FilecoinUploadJob>): Promise<void> {
 	const { cid, sizeBytes, pinataCid, filename } = job.data;

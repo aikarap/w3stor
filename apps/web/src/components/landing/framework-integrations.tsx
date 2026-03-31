@@ -8,13 +8,17 @@ import { BorderBeam } from "@/components/ui/border-beam";
 import { Card, CardContent } from "@/components/ui/card";
 import { SpotlightGrid } from "@/components/ui/spotlight-grid";
 
-const liveSnippet = `import { storeFile, listFiles, checkStatus } from "@w3stor/sdk/ai-sdk";
+const liveSnippet = `import { createTools } from "@w3stor/sdk/ai-sdk";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
+const tools = await createTools({
+  privateKey: process.env.PRIVATE_KEY, // EVM wallet for x402 payments
+});
+
 const { text } = await generateText({
   model: openai("gpt-4o"),
-  tools: { storeFile, listFiles, checkStatus },
+  tools,
   prompt: "Upload research.pdf to Filecoin",
 });`;
 
