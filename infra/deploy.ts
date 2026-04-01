@@ -158,6 +158,36 @@ async function cmdStatus() {
 	await sshCmd(host, `cd ${remoteDir} && set -a && source .env.prod && set +a && docker compose -f infra/${COMPOSE_FILE} ps`);
 }
 
+async function cmdRebuild() {
+	const { host, remoteDir, envPath } = await loadDeployEnv();
+
+	// 1. Sync env
+	info(`Syncing deploy.env → ${host}:${remoteDir}/.env.prod`);
+	await run(["rsync", "-az", envPath, `${host}:${remoteDir}/.env.prod`]);
+
+	// 2. Sync project files
+	const repoRoot = new URL("..", import.meta.url).pathname;
+	info(`Syncing project to ${host}:${remoteDir}`);
+	await run([
+		"rsync", "-avz", "--delete",
+		"--exclude=node_modules",
+		"--exclude=.git",
+		"--exclude=.next",
+		"--exclude=.turbo",
+		"--exclude=apps/web",
+		"--exclude=.env",
+		"--exclude=.env.prod",
+		"--exclude=infra/deploy.env",
+		repoRoot,
+		`${host}:${remoteDir}/`,
+	]);
+
+	// 3. Run rebuild script on remote
+	info("Running rebuild on remote...");
+	await sshCmd(host, `cd ${remoteDir} && bash infra/rebuild.sh`);
+	success("Rebuild complete!");
+}
+
 async function cmdScale(service: string, count: string) {
 	const { host, remoteDir } = await loadDeployEnv();
 	const n = parseInt(count, 10);
@@ -191,12 +221,16 @@ switch (command) {
 		if (args.length < 2) die("Usage: scale <service> <count>");
 		await cmdScale(args[0], args[1]);
 		break;
+	case "rebuild":
+		await cmdRebuild();
+		break;
 	default:
 		console.log(`
 W3Stor Deploy
 
 Usage:
   bun infra/deploy.ts deploy              Full deploy (env + sync + build + migrate + restart)
+  bun infra/deploy.ts rebuild             Tear down containers (keep volumes) + full rebuild
   bun infra/deploy.ts restart [service]   Restart all or specific service
   bun infra/deploy.ts logs [service]      Tail logs (default: all)
   bun infra/deploy.ts status              Show service status

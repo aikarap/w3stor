@@ -32,7 +32,12 @@ get_queue_depth() {
 }
 
 get_current_replicas() {
-  docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" ps --format json workers 2>/dev/null | grep -c '"running"' || echo 1
+  count=$(docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" ps --status running workers 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
+  if [ -z "$count" ] || [ "$count" -eq 0 ] 2>/dev/null; then
+    echo 0
+  else
+    echo "$count"
+  fi
 }
 
 scale_workers() {
@@ -49,6 +54,11 @@ scale_workers() {
   docker compose -p "$COMPOSE_PROJECT" -f "$COMPOSE_FILE" up -d --scale workers="$target" --no-recreate workers
   last_scale_time=$(date +%s)
 }
+
+# Source env for compose interpolation (passwords etc.)
+if [ -f "/.env.prod" ]; then
+  set -a && . /.env.prod && set +a
+fi
 
 # Install redis-cli if not present
 if ! command -v redis-cli >/dev/null 2>&1; then
