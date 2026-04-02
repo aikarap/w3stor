@@ -55,7 +55,7 @@ export type TraverseInputType = z.infer<typeof TraverseInput>;
 
 export const GetGraphInput = z.object({
   walletAddress: z.string(),
-  limit: z.number().default(500),
+  limit: z.number().default(2000),
 });
 export type GetGraphInputType = z.infer<typeof GetGraphInput>;
 

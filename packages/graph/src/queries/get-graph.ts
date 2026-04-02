@@ -19,9 +19,13 @@ export async function getGraph(
         { walletAddress: data.walletAddress, limit: neo4j.int(data.limit) }
       );
 
+      // Use a single query that collects visible files first, then finds edges between them
       const edgesResult = await tx.run(
-        `MATCH (a:File {walletAddress: $walletAddress})-[r]->(b:File {walletAddress: $walletAddress})
-         WHERE type(r) <> 'HAS_FILE'
+        `MATCH (:Agent {walletAddress: $walletAddress})-[:HAS_FILE]->(f:File)
+         WITH collect(f) AS files
+         UNWIND files AS a
+         MATCH (a)-[r]->(b)
+         WHERE b IN files AND type(r) <> 'HAS_FILE'
          RETURN a.cid AS fromCid, b.cid AS toCid, type(r) AS relationship`,
         { walletAddress: data.walletAddress }
       );

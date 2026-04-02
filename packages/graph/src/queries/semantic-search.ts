@@ -15,14 +15,16 @@ export async function semanticSearch(input: SemanticSearchInputType): Promise<Se
 
     const result = await session.executeRead(async (tx) => {
       return tx.run(
-        `CALL db.index.vector.queryNodes('file_embedding', $limit, $embedding)
+        `CALL db.index.vector.queryNodes('file_embedding', $candidates, $embedding)
          YIELD node, score
          WHERE node.walletAddress = $walletAddress AND score >= $threshold
          RETURN node, score
-         ORDER BY score DESC`,
+         ORDER BY score DESC
+         LIMIT $limit`,
         {
           walletAddress: data.walletAddress,
           embedding: queryEmbedding,
+          candidates: neo4j.int(Math.max(data.limit * 10, 500)),
           limit: neo4j.int(data.limit),
           threshold: data.threshold,
         }

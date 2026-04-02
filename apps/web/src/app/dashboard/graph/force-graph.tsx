@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useMemo } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import * as THREE from "three";
 
 const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), {
@@ -36,6 +36,7 @@ interface ForceGraphProps {
 	width?: number;
 	height?: number;
 	chargeStrength?: number;
+	highlightIds?: Set<string>;
 }
 
 const NODE_COLORS: Record<string, number> = {
@@ -43,14 +44,17 @@ const NODE_COLORS: Record<string, number> = {
 	File: 0x2ecc71,
 };
 
-const EDGE_COLORS: Record<string, string> = {
-	HAS_FILE: "#6c63ff",
-	uses_sensor_data: "#e74c3c",
-	uses_perception_data: "#f39c12",
-	related_sensor_data: "#3498db",
-	provides_environment_context: "#9b59b6",
-	DEFAULT: "#64748b",
-};
+const EDGE_PALETTE = [
+	"#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6",
+	"#1abc9c", "#e67e22", "#ec407a", "#26c6da", "#ab47bc",
+];
+
+/** Deterministic color from any relationship string */
+function hashRelColor(rel: string): string {
+	let h = 0;
+	for (let i = 0; i < rel.length; i++) h = (h * 31 + rel.charCodeAt(i)) | 0;
+	return EDGE_PALETTE[Math.abs(h) % EDGE_PALETTE.length];
+}
 
 function getNodeRadius(node: GraphNode): number {
 	if (node.type === "Agent") return 12;
@@ -62,7 +66,8 @@ function getNodeRadius(node: GraphNode): number {
 }
 
 function getEdgeColor(relationship: string): string {
-	return EDGE_COLORS[relationship] ?? EDGE_COLORS.DEFAULT;
+	if (relationship === "HAS_FILE") return "#6c63ff";
+	return hashRelColor(relationship);
 }
 
 function makeTextSprite(text: string, size: number, color: string): THREE.Sprite {
@@ -88,16 +93,24 @@ function makeTextSprite(text: string, size: number, color: string): THREE.Sprite
 	return sprite;
 }
 
-export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStrength = -120 }: ForceGraphProps) {
+export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStrength = -120, highlightIds }: ForceGraphProps) {
+	const highlighting = highlightIds != null;
 	const fgRef = useRef<any>(null);
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+		return () => setMounted(false);
+	}, []);
 
 	const handleNodeClick = useCallback(
 		(node: any) => {
-			if (node.type === "File" && onNodeClick) {
-				onNodeClick(node as GraphNode);
-			}
+			if (node.type !== "File" || !onNodeClick) return;
+			// Block clicks on dimmed nodes during search
+			if (highlighting && !highlightIds!.has(node.id)) return;
+			onNodeClick(node as GraphNode);
 		},
-		[onNodeClick],
+		[onNodeClick, highlighting, highlightIds],
 	);
 
 	useEffect(() => {
@@ -108,6 +121,8 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStr
 	}, [chargeStrength]);
 
 
+
+	// Include highlightIds in the dep array so nodeThreeObject re-runs when search changes
 	const graphData = useMemo(
 		() => ({
 			nodes: nodes.map((n) => ({ ...n })),
@@ -118,8 +133,11 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStr
 				id: e.id,
 			})),
 		}),
-		[nodes, edges],
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[nodes, edges, highlightIds],
 	);
+
+	if (!mounted || nodes.length === 0) return null;
 
 	return (
 		<ForceGraph3D
@@ -133,6 +151,10 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStr
 				const n = node as GraphNode;
 				const r = getNodeRadius(n);
 				const color = NODE_COLORS[n.type] ?? 0x64748b;
+				const isHit = !highlighting || highlightIds!.has(n.id);
+				const nodeOpacity = isHit ? 0.85 : 0.08;
+				const ringOpacity = isHit ? 0.25 : 0.03;
+				const labelColor = isHit ? "#e2e8f0" : "rgba(226,232,240,0.1)";
 
 				const group = new THREE.Group();
 
@@ -141,7 +163,7 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStr
 				const material = new THREE.MeshLambertMaterial({
 					color,
 					transparent: true,
-					opacity: 0.85,
+					opacity: nodeOpacity,
 				});
 				const sphere = new THREE.Mesh(geometry, material);
 				group.add(sphere);
@@ -151,26 +173,30 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStr
 				const ringMat = new THREE.MeshBasicMaterial({
 					color,
 					transparent: true,
-					opacity: 0.25,
+					opacity: ringOpacity,
 					side: THREE.DoubleSide,
 				});
 				const ring = new THREE.Mesh(ringGeo, ringMat);
 				group.add(ring);
 
 				// Type letter inside node
-				const letter = makeTextSprite(n.type === "Agent" ? "A" : "F", r * 0.8, "white");
+				const letterColor = isHit ? "white" : "rgba(255,255,255,0.1)";
+				const letter = makeTextSprite(n.type === "Agent" ? "A" : "F", r * 0.8, letterColor);
 				group.add(letter);
 
-				// Label below node
-				const label = n.label.length > 20 ? `${n.label.slice(0, 20)}…` : n.label;
-				const sprite = makeTextSprite(label, 4, "#e2e8f0");
-				sprite.position.y = -(r + 6);
+				// Label below node — prefer filename stem, fall back to short CID
+				let label = n.label;
+				if (label.includes(".")) label = label.replace(/\.[^.]+$/, ""); // strip extension
+				if (label.length > 18) label = `${label.slice(0, 16)}…`;
+				const sprite = makeTextSprite(label, 3.5, labelColor);
+				sprite.position.y = -(r + 5);
 				group.add(sprite);
 
 				return group;
 			}}
 			nodeLabel={(node: any) => {
 				const n = node as GraphNode;
+				if (highlighting && !highlightIds!.has(n.id)) return "";
 				const parts = [n.label];
 				if (n.description) parts.push(n.description);
 				if (n.tags?.length) parts.push(`Tags: ${n.tags.join(", ")}`);
@@ -180,13 +206,24 @@ export function ForceGraph({ nodes, edges, onNodeClick, width, height, chargeStr
 				}
 				return parts.join("<br/>");
 			}}
-			linkColor={(link: any) => getEdgeColor(link.relationship)}
-			linkWidth={1.5}
+			linkColor={(link: any) => {
+				if (!highlighting) return getEdgeColor(link.relationship);
+				const srcId = typeof link.source === "object" ? link.source.id : link.source;
+				const tgtId = typeof link.target === "object" ? link.target.id : link.target;
+				const isHit = highlightIds!.has(srcId) && highlightIds!.has(tgtId);
+				return isHit ? getEdgeColor(link.relationship) : "rgba(100,116,139,0.08)";
+			}}
+			linkWidth={(link: any) => {
+				if (!highlighting) return 1.5;
+				const srcId = typeof link.source === "object" ? link.source.id : link.source;
+				const tgtId = typeof link.target === "object" ? link.target.id : link.target;
+				return (highlightIds!.has(srcId) && highlightIds!.has(tgtId)) ? 2.5 : 0.3;
+			}}
 			linkDirectionalArrowLength={6}
 			linkDirectionalArrowRelPos={1}
 			linkLabel={(link: any) => link.relationship}
 			linkCurvature={0.15}
-			linkOpacity={0.6}
+			linkOpacity={highlighting ? 1 : 0.6}
 			onNodeClick={handleNodeClick}
 			d3AlphaDecay={0.02}
 			d3VelocityDecay={0.3}
