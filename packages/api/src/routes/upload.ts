@@ -19,16 +19,23 @@ uploadRoute.post("/upload", async (c) => {
 		}
 
 		const formData = await c.req.formData();
-		const file = formData.get("file");
+		let file: File | null = formData.get("file") as File | null;
 
 		if (!file || !(file instanceof File)) {
 			return c.json({ error: "Missing 'file' field in form data" }, 400);
 		}
 
-		// Pin to IPFS via Pinata
-		const pinResult = await pinFileToIPFS(file, file.name);
+		// Extract metadata before pinning — we'll release the file from memory after pin
+		const filename = file.name;
+		const contentType = file.type || "application/octet-stream";
+
+		// Pin to IPFS via Pinata — this is the only step that needs the file bytes
+		const pinResult = await pinFileToIPFS(file, filename);
 		const cid = pinResult.IpfsHash;
 		const sizeBytes = pinResult.PinSize;
+
+		// Release file from memory — Pinata has it, workers will fetch from IPFS gateway
+		file = null;
 
 		// Ensure user exists
 		await findOrCreateUser(walletAddress);
@@ -39,7 +46,7 @@ uploadRoute.post("/upload", async (c) => {
 			await createUserFile({
 				walletAddress,
 				cid,
-				filename: file.name,
+				filename,
 				metadata: {},
 			});
 
@@ -47,8 +54,8 @@ uploadRoute.post("/upload", async (c) => {
 			addFile({
 				walletAddress,
 				cid,
-				filename: file.name,
-				contentType: file.type || "application/octet-stream",
+				filename,
+				contentType,
 				sizeBytes: Number(sizeBytes),
 			}).catch((err) => {
 				logger.warn("Graph add failed (non-blocking)", {
@@ -61,7 +68,7 @@ uploadRoute.post("/upload", async (c) => {
 				cid,
 				status: existing.status,
 				size: existing.sizeBytes,
-				filename: file.name,
+				filename,
 				duplicate: true,
 			});
 		}
@@ -70,14 +77,14 @@ uploadRoute.post("/upload", async (c) => {
 		const fileRecord = await createFile({
 			cid,
 			sizeBytes,
-			contentType: file.type || "application/octet-stream",
+			contentType,
 			pinataPinId: cid,
 		});
 
 		await createUserFile({
 			walletAddress,
 			cid,
-			filename: file.name,
+			filename,
 			metadata: {},
 		});
 
@@ -85,8 +92,8 @@ uploadRoute.post("/upload", async (c) => {
 		addFile({
 			walletAddress,
 			cid,
-			filename: file.name,
-			contentType: file.type || "application/octet-stream",
+			filename,
+			contentType,
 			sizeBytes: Number(sizeBytes),
 		}).catch((err) => {
 			logger.warn("Graph add failed (non-blocking)", {
@@ -101,16 +108,16 @@ uploadRoute.post("/upload", async (c) => {
 			sizeBytes,
 			walletAddress,
 			pinataCid: cid,
-			filename: file.name,
+			filename,
 		});
 
-		logger.info("File uploaded via /upload endpoint", { cid, filename: file.name, sizeBytes });
+		logger.info("File uploaded via /upload endpoint", { cid, filename, sizeBytes });
 
 		return c.json({
 			cid: fileRecord.cid,
 			status: fileRecord.status,
 			size: fileRecord.sizeBytes,
-			filename: file.name,
+			filename,
 			duplicate: false,
 		});
 	} catch (error) {

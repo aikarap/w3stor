@@ -21,7 +21,9 @@ const BatchMetadataSchema = z.object({
 
 const MAX_FILES = 10;
 const MAX_FILE_SIZE_BYTES = 0.4 * 1024 * 1024 * 1024; // 0.4 GiB per file
+const MAX_BATCH_SIZE_BYTES = 1 * 1024 * 1024 * 1024; // 1 GiB total per batch
 const MAX_CONNECTIONS = 50;
+const PIN_CONCURRENCY = 2; // max simultaneous Pinata pins per batch
 
 export const batchUploadRoute = new Hono();
 
@@ -57,6 +59,10 @@ batchUploadRoute.post("/batch-upload", async (c) => {
       }
     }
 
+    if (totalSize > MAX_BATCH_SIZE_BYTES) {
+      return c.json({ error: `Total batch size ${totalSize} exceeds 1 GiB limit`, maxBytes: MAX_BATCH_SIZE_BYTES }, 400);
+    }
+
     // Validate declared counts match actual
     const declaredFiles = parseInt(c.req.header("x-batch-files") || "0", 10);
     const declaredSize = parseInt(c.req.header("x-batch-size") || "0", 10);
@@ -73,13 +79,18 @@ batchUploadRoute.post("/batch-upload", async (c) => {
 
     await findOrCreateUser(walletAddress);
 
-    // 1. Upload all files to IPFS (parallel)
-    const uploadResults = await Promise.allSettled(
-      files.map(async ({ file }) => {
-        const pinResult = await pinFileToIPFS(file, file.name);
-        return { cid: pinResult.IpfsHash, sizeBytes: pinResult.PinSize, filename: file.name, contentType: file.type };
-      })
-    );
+    // 1. Upload files to IPFS with controlled concurrency to avoid OOM
+    const uploadResults: PromiseSettledResult<{ cid: string; sizeBytes: number; filename: string; contentType: string }>[] = [];
+    for (let i = 0; i < files.length; i += PIN_CONCURRENCY) {
+      const batch = files.slice(i, i + PIN_CONCURRENCY);
+      const batchResults = await Promise.allSettled(
+        batch.map(async ({ file }) => {
+          const pinResult = await pinFileToIPFS(file, file.name);
+          return { cid: pinResult.IpfsHash, sizeBytes: pinResult.PinSize, filename: file.name, contentType: file.type };
+        })
+      );
+      uploadResults.push(...batchResults);
+    }
 
     // 2. Process results, create DB records
     const cidMap = new Map<number, string>();

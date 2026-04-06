@@ -6,6 +6,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./filecoin": "./src/filecoin/index.ts",
+		"./filecoin/sp-retry-utils": "./src/filecoin/sp-retry-utils.ts",
 		"./pinata": "./src/pinata/client.ts",
 		"./x402": "./src/x402/index.ts",
 		"./queue": "./src/queue/index.ts",

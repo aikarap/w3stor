@@ -4,12 +4,8 @@ export interface FilecoinUploadJob {
 	walletAddress: string;
 	pinataCid: string;
 	filename: string;
-}
-
-export interface RetrievalVerifyJob {
-	cid: string;
-	spId: string;
-	spUrl: string;
+	/** True when enqueued by auto-repair — used for semaphore + skip SSE */
+	isRepair?: boolean;
 }
 
 export interface PinataUnpinJob {
@@ -17,8 +13,4 @@ export interface PinataUnpinJob {
 	pinataPinId: string;
 }
 
-export interface SPRetryCheckJob {
-	triggeredBy: "schedule" | "manual";
-}
-
-export type JobPayload = FilecoinUploadJob | RetrievalVerifyJob | PinataUnpinJob | SPRetryCheckJob;
+export type JobPayload = FilecoinUploadJob | PinataUnpinJob;

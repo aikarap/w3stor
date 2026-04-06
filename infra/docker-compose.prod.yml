@@ -3,12 +3,20 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=512MB", "-c", "work_mem=4MB", "-c", "effective_cache_size=1GB"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-w3stor}
       POSTGRES_USER: ${POSTGRES_USER:-w3stor}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    mem_limit: 1500m
+    memswap_limit: 1500m
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-w3stor}"]
       interval: 10s
@@ -37,16 +45,24 @@ services:
     environment:
       NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in .env}
       NEO4J_PLUGINS: '["apoc"]'
-      NEO4J_server_memory_heap_initial__size: 512m
-      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_heap_initial__size: 384m
+      NEO4J_server_memory_heap_max__size: 384m
       NEO4J_server_memory_pagecache_size: 256m
     volumes:
       - neo4j_data:/data
+    mem_limit: 1g
+    memswap_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER:-neo4j}", "-p", "${NEO4J_PASSWORD}", "RETURN 1"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     networks:
       - internal
 
@@ -65,6 +81,13 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-w3stor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-w3stor}
       REDIS_URL: redis://redis:6379
       PORT: "4000"
+    mem_limit: 3g
+    memswap_limit: 3g
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,13 +106,21 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-w3stor}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-w3stor}
       REDIS_URL: redis://redis:6379
+    mem_limit: 2g
+    memswap_limit: 2g
+    stop_grace_period: 300s
+    logging:
+      driver: json-file
+      options:
+        max-size: "30m"
+        max-file: "3"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      neo4j:
-        condition: service_healthy
+      # No neo4j dependency — workers don't need it for uploads.
+      # Graph index init is fire-and-forget with .catch()
     networks:
       - internal
 
@@ -119,14 +150,20 @@ services:
       - ./autoscaler.sh:/autoscaler.sh:ro
       - ./docker-compose.prod.yml:/compose.yml:ro
       - ../.env.prod:/.env.prod:ro
+      - /proc/meminfo:/host/meminfo:ro
     environment:
       REDIS_URL: redis://redis:6379
       AUTOSCALER_MIN_WORKERS: ${AUTOSCALER_MIN_WORKERS:-1}
-      AUTOSCALER_MAX_WORKERS: ${AUTOSCALER_MAX_WORKERS:-4}
+      AUTOSCALER_MAX_WORKERS: ${AUTOSCALER_MAX_WORKERS:-2}
+      # Memory per worker container in MB — must match workers.mem_limit
+      AUTOSCALER_WORKER_MEM_MB: ${AUTOSCALER_WORKER_MEM_MB:-2048}
       AUTOSCALER_POLL_INTERVAL: ${AUTOSCALER_POLL_INTERVAL:-30}
       AUTOSCALER_SCALE_UP_THRESHOLD: ${AUTOSCALER_SCALE_UP_THRESHOLD:-10}
       AUTOSCALER_SCALE_DOWN_THRESHOLD: ${AUTOSCALER_SCALE_DOWN_THRESHOLD:-3}
       AUTOSCALER_COOLDOWN: ${AUTOSCALER_COOLDOWN:-60}
+      AUTOSCALER_ACTIVE_BYTES_THRESHOLD: ${AUTOSCALER_ACTIVE_BYTES_THRESHOLD:-524288000}
+      AUTOSCALER_REPAIR_IDLE_THRESHOLD: ${AUTOSCALER_REPAIR_IDLE_THRESHOLD:-4}
+      AUTOSCALER_REPAIR_COOLDOWN: ${AUTOSCALER_REPAIR_COOLDOWN:-300}
       COMPOSE_FILE: /compose.yml
       COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME:-w3stor}
     depends_on:

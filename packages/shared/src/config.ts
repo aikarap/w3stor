@@ -40,6 +40,9 @@ interface Config {
 		maxAttempts: number;
 		backoffDelay: number;
 		shutdownTimeout: number;
+		lockDuration: number;
+		stalledInterval: number;
+		maxStalledCount: number;
 	};
 	rateLimiting: {
 		maxMessagesPerConversation: number;
@@ -159,7 +162,10 @@ export const config: Config = {
 		rateLimitDuration: parseInt(getOptionalEnv("WORKER_RATE_LIMIT_DURATION", "1000") || "1000", 10),
 		maxAttempts: parseInt(getOptionalEnv("WORKER_MAX_ATTEMPTS", "5") || "5", 10),
 		backoffDelay: parseInt(getOptionalEnv("WORKER_BACKOFF_DELAY", "5000") || "5000", 10),
-		shutdownTimeout: parseInt(getOptionalEnv("WORKER_SHUTDOWN_TIMEOUT", "30000") || "30000", 10),
+		shutdownTimeout: parseInt(getOptionalEnv("WORKER_SHUTDOWN_TIMEOUT", "300000") || "300000", 10),
+		lockDuration: parseInt(getOptionalEnv("WORKER_LOCK_DURATION", "300000") || "300000", 10),
+		stalledInterval: parseInt(getOptionalEnv("WORKER_STALLED_INTERVAL", "60000") || "60000", 10),
+		maxStalledCount: parseInt(getOptionalEnv("WORKER_MAX_STALLED_COUNT", "4") || "4", 10),
 	},
 
 	rateLimiting: {

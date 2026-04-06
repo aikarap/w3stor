@@ -5,4 +5,4 @@ export {
 	getWorkerRedisConnection,
 	healthCheck as queueHealthCheck,
 } from "./client";
-export { enqueueFilecoinUpload, enqueuePinataUnpin, setupRetrySchedule } from "./jobs";
+export { enqueueFilecoinUpload, enqueueRepairUpload, enqueuePinataUnpin } from "./jobs";

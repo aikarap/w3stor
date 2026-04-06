@@ -1,6 +1,10 @@
 import {
+	ensurePendingSPRows,
 	findFileByCID,
+	getConfirmedSPCount,
+	getRepairableFiles,
 	getSPStatuses,
+	resetStaleSPStatuses,
 	updateFilePieceCid,
 	updateFileStatus,
 	updatePinataStatus,
@@ -10,22 +14,16 @@ import {
 	getClientFromEnv,
 	loadSPProvidersConfig,
 	uploadCarToAllProviders,
-	verifyFilecoinFile,
+	uploadCarFromStreamToAllProviders,
 } from "@w3stor/modules/filecoin";
-import { fetchFromIPFS, unpinFile } from "@w3stor/modules/pinata";
-import { enqueuePinataUnpin, getWorkerRedisConnection, setupRetrySchedule } from "@w3stor/modules/queue";
-import type { FilecoinUploadJob, PinataUnpinJob, RetrievalVerifyJob, SPRetryCheckJob } from "@w3stor/shared";
-import {
-	config,
-	logger,
-	VerificationNetworkError,
-	VerificationNotFoundError,
-	VerificationValidationError,
-	validateConfig,
-} from "@w3stor/shared";
+import { verifyTransactionOnChain, retryFailedSPs } from "@w3stor/modules/filecoin/sp-retry-utils";
+import type { SPProviderConfig } from "@w3stor/modules/filecoin";
+import { fetchFromIPFS, fetchFromIPFSStream, unpinFile } from "@w3stor/modules/pinata";
+import { enqueuePinataUnpin, enqueueRepairUpload, getWorkerRedisConnection, getFilecoinQueue } from "@w3stor/modules/queue";
+import type { FilecoinUploadJob, PinataUnpinJob } from "@w3stor/shared";
+import { config, logger, validateConfig } from "@w3stor/shared";
 import { type Job, Worker } from "bullmq";
 import { initializeIndexes } from "@w3stor/graph";
-import { processSPRetryCheck } from "./sp-retry";
 
 validateConfig();
 
@@ -33,354 +31,479 @@ initializeIndexes().catch((err) => {
 	logger.warn("Neo4j index initialization failed", { error: err instanceof Error ? err.message : String(err) });
 });
 
-setupRetrySchedule().catch((err) => {
-	logger.warn("Failed to setup SP retry schedule", {
-		error: err instanceof Error ? err.message : String(err),
-	});
-});
+// ============================================================================
+// Active bytes tracking for size-aware autoscaling
+// ============================================================================
+const ACTIVE_BYTES_KEY = "w3stor:worker:active-bytes";
 
-async function processFilecoinUpload(job: Job<FilecoinUploadJob>): Promise<void> {
-	const { cid, sizeBytes, pinataCid, filename } = job.data;
-
-	logger.info("Starting Filecoin CAR upload", {
-		jobId: job.id,
-		cid,
-		pinataCid,
-		sizeBytes,
-	});
-
-	await updateFileStatus(cid, "uploading");
-
-	// Create pending SP rows immediately so the UI can show assigned providers
-	const redis = getWorkerRedisConnection();
-	const spConfig = loadSPProvidersConfig();
-	for (const provider of spConfig.providers) {
-		await updateSPStatus({
-			cid,
-			spId: provider.name,
-			status: "pending",
-			url: provider.url,
-		});
-	}
-
-	// Publish initial status so frontend sees providers right away
-	await redis.publish(
-		`file:${cid}:status`,
-		JSON.stringify({
-			cid,
-			status: "uploading",
-			confirmedSPs: 0,
-			totalProviders: spConfig.providers.length,
-			providers: spConfig.providers.map((p) => ({
-				spId: p.name,
-				status: "pending",
-			})),
-		}),
-	);
-
+async function trackActiveBytes(delta: number): Promise<void> {
 	try {
-		const fileData = await fetchFromIPFS(pinataCid);
-
-		logger.info("Fetched file from IPFS gateway", {
-			jobId: job.id,
-			cid,
-			pinataCid,
-			fetchedBytes: fileData.length,
-		});
-
-		const filecoinClient = getClientFromEnv();
-		let confirmedSPCount = 0;
-		const { replicationMinProviders, replicationTotalProviders } = config.filecoin;
-
-		const { succeeded, failed, totalProviders } = await uploadCarToAllProviders(
-			filecoinClient,
-			fileData,
-			{
-				filename: filename || `file-${cid}`,
-				sizeBytes,
-				waitForIPNI: true,
-				// Set pieceCid on the file as soon as it's computed (before any SP upload)
-				async onPieceCidComputed(pieceCid) {
-					await updateFilePieceCid(cid, pieceCid);
-					logger.info("PieceCID set early", { jobId: job.id, cid, pieceCid });
-					await redis.publish(
-						`file:${cid}:status`,
-						JSON.stringify({ cid, status: "uploading", event: "piece-cid-computed", pieceCid }),
-					);
-				},
-				onProgress: (stage, data) => {
-					logger.info("Upload progress", { jobId: job.id, cid, stage, data });
-				},
-				// Called at each phase transition per provider — update DB + Redis in real-time
-				async onProviderProgress({ configId, name, status: spStatus, txHash }) {
-					await updateSPStatus({
-						cid,
-						spId: name,
-						status: spStatus,
-						txHash,
-					});
-
-					logger.info("SP progress", { jobId: job.id, cid, sp: name, status: spStatus, txHash });
-
-					await redis.publish(
-						`file:${cid}:status`,
-						JSON.stringify({
-							cid,
-							status: "uploading",
-							event: "provider-progress",
-							provider: { spId: name, status: spStatus, txHash },
-						}),
-					);
-				},
-				// Called for each SP as it commits on-chain
-				async onProviderCommit(result) {
-					const sp = spConfig.providers.find((p) => p.id === result.configId);
-					const spName = sp?.name ?? result.configId;
-					confirmedSPCount++;
-
-					await updateSPStatus({
-						cid,
-						spId: spName,
-						status: "stored",
-						url: result.provider.endpoint,
-						verifiedAt: new Date(),
-						pieceCid: result.pieceCid,
-						txHash: result.txHash,
-					});
-
-					// Update file status incrementally as SPs confirm
-					const fileStatus =
-						confirmedSPCount >= replicationTotalProviders
-							? "fully_replicated"
-							: confirmedSPCount >= replicationMinProviders
-								? "stored"
-								: "uploading";
-					await updateFileStatus(cid, fileStatus);
-
-					logger.info("SP stored", {
-						jobId: job.id,
-						cid,
-						sp: spName,
-						confirmedSPs: confirmedSPCount,
-						fileStatus,
-						txHash: result.txHash,
-					});
-
-					await redis.publish(
-						`file:${cid}:status`,
-						JSON.stringify(
-							{
-								cid,
-								status: fileStatus,
-								event: "provider-committed",
-								confirmedSPs: confirmedSPCount,
-								totalProviders: spConfig.providers.length,
-								provider: { spId: spName, status: "stored", txHash: result.txHash, pieceCid: result.pieceCid },
-							},
-							(_, v) => (typeof v === "bigint" ? v.toString() : v),
-						),
-					);
-				},
-				async onProviderFail(failure) {
-					const sp = spConfig.providers.find((p) => p.id === failure.configId);
-					const spName = sp?.name ?? failure.configId;
-
-					await updateSPStatus({ cid, spId: spName, status: "failed" });
-
-					await redis.publish(
-						`file:${cid}:status`,
-						JSON.stringify({
-							cid,
-							status: "uploading",
-							event: "provider-failed",
-							provider: { spId: spName, status: "failed", error: failure.error },
-						}),
-					);
-				},
-			},
-		);
-
-		// File status was already updated incrementally in onProviderCommit.
-		// Handle edge case: all SPs failed (confirmedSPCount is still 0).
-		if (confirmedSPCount === 0) {
-			await updateFileStatus(cid, "failed");
-			throw new Error(`All ${totalProviders} SP uploads failed`);
-		}
-
-		// Unpin from Pinata once we have enough confirmations
-		if (confirmedSPCount >= replicationMinProviders) {
-			const file = await findFileByCID(cid);
-			if (file?.pinataPinId) {
-				await enqueuePinataUnpin({ cid, pinataPinId: file.pinataPinId });
-				logger.info("Pinata unpin job queued", { cid, confirmedSPs: confirmedSPCount });
-			}
-		}
-
-		// Publish final completion notification via Redis pub/sub
-		const finalStatus =
-			confirmedSPCount >= replicationTotalProviders ? "fully_replicated"
-				: confirmedSPCount >= replicationMinProviders ? "stored"
-				: "partial";
-		try {
-			await redis.publish(
-				`file:${cid}:status`,
-				JSON.stringify(
-					{
-						cid,
-						status: finalStatus,
-						confirmedSPs: confirmedSPCount,
-						totalProviders,
-						failedProviders: failed.map((f) => f.configId),
-					},
-					(_, v) => (typeof v === "bigint" ? v.toString() : v),
-				),
-			);
-		} catch (pubError) {
-			logger.warn("Failed to publish status notification", {
-				cid,
-				error: pubError instanceof Error ? pubError.message : String(pubError),
-			});
-		}
-
-		logger.info("Filecoin upload completed", {
-			jobId: job.id,
-			cid,
-			confirmedSPs: confirmedSPCount,
-			failedSPs: failed.length,
-			finalStatus,
-		});
-	} catch (error) {
-		logger.error("Filecoin upload failed", {
-			jobId: job.id,
-			cid,
-			error: error instanceof Error ? error.message : String(error),
-		});
-
-		await updateFileStatus(cid, "failed");
-		throw error;
+		const redis = getWorkerRedisConnection();
+		const newVal = await redis.incrby(ACTIVE_BYTES_KEY, delta);
+		if (newVal < 0) await redis.set(ACTIVE_BYTES_KEY, "0");
+		await redis.expire(ACTIVE_BYTES_KEY, 120);
+	} catch {
+		// Non-critical — autoscaler will just use queue depth
 	}
 }
 
-// TODO: This handler works correctly but is unreachable — jobs.ts never enqueues 'retrieval-verify' jobs.
-// Wire up the enqueue path when SP deal verification is ready.
-async function processRetrievalVerify(job: Job<RetrievalVerifyJob>): Promise<void> {
-	const { cid, spId, spUrl } = job.data;
+async function resetActiveBytes(): Promise<void> {
+	try {
+		const redis = getWorkerRedisConnection();
+		await redis.set(ACTIVE_BYTES_KEY, "0");
+	} catch { /* Non-critical */ }
+}
 
-	logger.info("Processing retrieval verify job", {
-		jobId: job.id,
-		cid,
-		spId,
+// ============================================================================
+// Repair concurrency semaphore
+// ============================================================================
+const REPAIR_SEMAPHORE_KEY = "w3stor:repair:active-count";
+const MAX_PARALLEL_REPAIRS = 2;
+const REPAIR_SEMAPHORE_TTL = 600; // 10min — auto-clears if all workers crash
+
+async function acquireRepairSlot(): Promise<boolean> {
+	const redis = getWorkerRedisConnection();
+	const count = await redis.incr(REPAIR_SEMAPHORE_KEY);
+	await redis.expire(REPAIR_SEMAPHORE_KEY, REPAIR_SEMAPHORE_TTL);
+	if (count > MAX_PARALLEL_REPAIRS) {
+		await redis.decr(REPAIR_SEMAPHORE_KEY);
+		return false;
+	}
+	return true;
+}
+
+async function releaseRepairSlot(): Promise<void> {
+	try {
+		const redis = getWorkerRedisConnection();
+		const val = await redis.decr(REPAIR_SEMAPHORE_KEY);
+		if (val < 0) await redis.set(REPAIR_SEMAPHORE_KEY, "0");
+	} catch { /* Non-critical */ }
+}
+
+// ============================================================================
+// Unified file replication handler
+// ============================================================================
+
+const STREAM_THRESHOLD = 64 * 1024 * 1024; // 64MB
+
+async function processFilecoinUpload(job: Job<FilecoinUploadJob>): Promise<void> {
+	const { cid, sizeBytes, pinataCid, filename, isRepair } = job.data;
+
+	// --- Repair concurrency gate ---
+	let acquiredSlot = false;
+	if (isRepair) {
+		const got = await acquireRepairSlot();
+		if (!got) {
+			throw new Error("Repair concurrency limit reached, will retry");
+		}
+		acquiredSlot = true;
+	}
+
+	await trackActiveBytes(sizeBytes);
+
+	logger.info("Starting file replication", {
+		jobId: job.id, cid, pinataCid, sizeBytes,
+		isRepair: !!isRepair, attempt: job.attemptsMade,
 	});
 
-	try {
-		const spStatuses = await getSPStatuses(cid);
-		const spEntry = spStatuses.find((s) => s.spId === spId);
+	const redis = getWorkerRedisConnection();
+	const spConfig = loadSPProvidersConfig();
+	const filecoinClient = getClientFromEnv();
+	const { replicationMinProviders, replicationTotalProviders } = config.filecoin;
 
-		if (!spEntry?.pieceCid) {
-			logger.warn("No piece CID found for SP verification", {
-				cid,
-				spId,
+	try {
+		// Create pending SP rows only if they don't exist — never overwrite progress
+		await ensurePendingSPRows(
+			cid,
+			spConfig.providers.map((p) => ({ name: p.name, url: p.url })),
+		);
+
+		await updateFileStatus(cid, "uploading");
+
+		// Publish initial status so frontend sees providers right away (skip for repairs)
+		if (!isRepair) {
+			const initialStatuses = await getSPStatuses(cid);
+			await publishSSE(redis, `file:${cid}:status`, {
+				cid, status: "uploading",
+				confirmedSPs: 0,
+				totalProviders: spConfig.providers.length,
+				providers: initialStatuses.map((s) => ({ spId: s.spId, status: s.status })),
 			});
+		}
+
+		// ==================================================================
+		// Phase 0: On-chain tx verification (free, idempotent)
+		// ==================================================================
+		const spStatuses = await getSPStatuses(cid);
+		for (const sp of spStatuses) {
+			if (sp.txHash && ["failed", "tx_submitted"].includes(sp.status)) {
+				logger.info("Verifying existing tx on-chain", { jobId: job.id, cid, spId: sp.spId, txHash: sp.txHash });
+				const txSuccess = await verifyTransactionOnChain(sp.txHash);
+				if (txSuccess) {
+					await updateSPStatus({
+						cid, spId: sp.spId, status: "stored",
+						verifiedAt: new Date(), txHash: sp.txHash,
+					});
+					logger.info("SP tx verified on-chain — recovered without re-upload", {
+						jobId: job.id, cid, spId: sp.spId, txHash: sp.txHash,
+					});
+				}
+			}
+		}
+
+		// Re-read from DB after Phase 0 updates (fixes stale-read bug)
+		let confirmedCount = await getConfirmedSPCount(cid);
+
+		if (confirmedCount >= replicationTotalProviders) {
+			await updateFileStatus(cid, "fully_replicated");
+			if (!isRepair) await publishFinalStatus(redis, cid, confirmedCount, spConfig.providers.length, []);
+			logger.info("File already fully replicated after tx verification", { jobId: job.id, cid, confirmedSPs: confirmedCount });
 			return;
 		}
 
-		const pieceCid = spEntry.pieceCid;
+		// ==================================================================
+		// Phase 1: Smart routing — pick cheapest strategy
+		// ==================================================================
+		const currentStatuses = await getSPStatuses(cid);
+		const confirmedSP = currentStatuses.find((s) =>
+			["stored", "verified", "tx_confirmed", "piece_parked"].includes(s.status),
+		);
+		const needsWork = currentStatuses.filter((s) =>
+			["failed", "pending", "committing", "tx_submitted"].includes(s.status),
+		);
 
-		const providerAddress = spUrl as `0x${string}`;
+		if (needsWork.length === 0) {
+			logger.info("No SPs need work", { jobId: job.id, cid, confirmedCount });
+			// Still finalize in case file status is stale
+		} else {
+			const existingFile = await findFileByCID(cid);
+			const hasPieceCid = !!existingFile?.pieceCid;
 
-		try {
-			const verifyResult = await verifyFilecoinFile(pieceCid, spUrl, providerAddress);
-
-			if (verifyResult.verified && verifyResult.exists) {
-				await updateSPStatus({
-					cid,
-					spId,
-					status: "verified",
-					verifiedAt: new Date(),
-				});
-
-				logger.info("SP verification successful", {
-					jobId: job.id,
-					cid,
-					spId,
-					pieceCid,
-					verified: true,
-				});
-			}
-		} catch (error) {
-			if (error instanceof VerificationNetworkError) {
-				logger.warn("SP verification network error - will retry", {
-					jobId: job.id,
-					cid,
-					spId,
-					error: error.message,
-				});
-				throw error;
-			} else if (error instanceof VerificationNotFoundError) {
-				logger.warn("SP verification - piece not found", {
-					jobId: job.id,
-					cid,
-					spId,
-					pieceCid,
-				});
-				await updateSPStatus({
-					cid,
-					spId,
-					status: "failed",
-				});
-			} else if (error instanceof VerificationValidationError) {
-				logger.error("SP verification - validation error", {
-					jobId: job.id,
-					cid,
-					spId,
-					error: error.message,
-				});
-				await updateSPStatus({
-					cid,
-					spId,
-					status: "failed",
-				});
-				throw error;
+			if (confirmedSP && hasPieceCid) {
+				// --- Route A: SP-to-SP pull for remaining SPs ---
+				await doSPtoSPPull(job, cid, existingFile.pieceCid!, sizeBytes,
+					confirmedSP, needsWork, spConfig, filecoinClient, redis, isRepair);
 			} else {
-				throw error;
+				// --- Route B: Full upload pipeline ---
+				await doFullUpload(job, cid, pinataCid, sizeBytes, filename,
+					spConfig, filecoinClient, redis, isRepair);
 			}
 		}
-	} catch (error) {
-		logger.error("Retrieval verification error", {
-			jobId: job.id,
-			cid,
-			spId,
-			error: error instanceof Error ? error.message : String(error),
+
+		// ==================================================================
+		// Phase 2: Finalize from DB (atomic — no in-memory counter)
+		// ==================================================================
+		confirmedCount = await getConfirmedSPCount(cid);
+
+		const finalStatus =
+			confirmedCount >= replicationTotalProviders ? "fully_replicated"
+				: confirmedCount >= replicationMinProviders ? "stored"
+				: confirmedCount > 0 ? "partial"
+				: "failed";
+		await updateFileStatus(cid, finalStatus);
+
+		// Unpin from Pinata once we have enough confirmations
+		if (confirmedCount >= replicationMinProviders) {
+			const file = await findFileByCID(cid);
+			if (file?.pinataPinId && file.pinataPinned) {
+				await enqueuePinataUnpin({ cid, pinataPinId: file.pinataPinId });
+				logger.info("Pinata unpin job queued", { cid, confirmedSPs: confirmedCount });
+			}
+		}
+
+		// Publish final SSE event (skip for repairs)
+		if (!isRepair) {
+			const finalStatuses = await getSPStatuses(cid);
+			const failedIds = finalStatuses.filter((s) => s.status === "failed").map((s) => s.spId);
+			await publishFinalStatus(redis, cid, confirmedCount, spConfig.providers.length, failedIds);
+		}
+
+		logger.info("File replication completed", {
+			jobId: job.id, cid, confirmedSPs: confirmedCount,
+			finalStatus, isRepair: !!isRepair, attempt: job.attemptsMade,
 		});
+
+		if (confirmedCount === 0) {
+			throw new Error(`All SP uploads failed for ${cid}`);
+		}
+	} catch (error) {
+		logger.error("File replication failed", {
+			jobId: job.id, cid, isRepair: !!isRepair,
+			error: error instanceof Error ? error.message : String(error),
+			attempt: job.attemptsMade,
+		});
+		await updateFileStatus(cid, "failed").catch(() => {});
 		throw error;
+	} finally {
+		await trackActiveBytes(-sizeBytes);
+		if (acquiredSlot) await releaseRepairSlot();
 	}
 }
+
+// ============================================================================
+// Route A: SP-to-SP pull for remaining SPs
+// ============================================================================
+
+async function doSPtoSPPull(
+	job: Job<FilecoinUploadJob>,
+	cid: string,
+	pieceCid: string,
+	sizeBytes: number,
+	confirmedSP: { spId: string },
+	needsWork: { spId: string }[],
+	spConfig: ReturnType<typeof loadSPProvidersConfig>,
+	filecoinClient: ReturnType<typeof getClientFromEnv>,
+	redis: ReturnType<typeof getWorkerRedisConnection>,
+	isRepair?: boolean,
+): Promise<void> {
+	const confirmedProviderConfig = spConfig.providers.find((p) => p.name === confirmedSP.spId);
+	if (!confirmedProviderConfig) {
+		throw new Error(`No provider config found for confirmed SP ${confirmedSP.spId}`);
+	}
+
+	const failedProviders = needsWork
+		.map((s) => spConfig.providers.find((p) => p.name === s.spId))
+		.filter((p): p is SPProviderConfig => p != null);
+
+	if (failedProviders.length === 0) return;
+
+	logger.info("Route A: SP-to-SP pull", {
+		jobId: job.id, cid, sourceSP: confirmedSP.spId,
+		targetSPs: failedProviders.map((p) => p.name),
+	});
+
+	const retryResults = await retryFailedSPs(filecoinClient, {
+		cid, pieceCid, sizeBytes,
+		confirmedProvider: confirmedProviderConfig,
+		failedProviders,
+		async onSPProgress(spId, status, txHash) {
+			await updateSPStatus({ cid, spId, status, txHash });
+			if (!isRepair) {
+				await publishSSE(redis, `file:${cid}:status`, {
+					cid, status: "uploading",
+					event: "provider-progress",
+					provider: { spId, status, txHash },
+				});
+			}
+		},
+	});
+
+	for (const result of retryResults) {
+		if (result.success) {
+			await updateSPStatus({
+				cid, spId: result.spId, status: "stored",
+				verifiedAt: new Date(), txHash: result.txHash,
+			});
+			logger.info("SP pull succeeded", { jobId: job.id, cid, spId: result.spId, txHash: result.txHash });
+		} else if (result.txHash) {
+			// TX submitted but unconfirmed — Phase 0 will verify it on next run
+			await updateSPStatus({ cid, spId: result.spId, status: "tx_submitted", txHash: result.txHash });
+			logger.warn("SP pull tx unconfirmed — saved for Phase 0 verification", {
+				jobId: job.id, cid, spId: result.spId, txHash: result.txHash,
+			});
+		} else {
+			await updateSPStatus({ cid, spId: result.spId, status: "failed" });
+		}
+	}
+}
+
+// ============================================================================
+// Route B: Full upload pipeline (IPFS fetch → CAR → store → pull → commit)
+// ============================================================================
+
+async function doFullUpload(
+	job: Job<FilecoinUploadJob>,
+	cid: string,
+	pinataCid: string,
+	sizeBytes: number,
+	filename: string,
+	spConfig: ReturnType<typeof loadSPProvidersConfig>,
+	filecoinClient: ReturnType<typeof getClientFromEnv>,
+	redis: ReturnType<typeof getWorkerRedisConnection>,
+	isRepair?: boolean,
+): Promise<void> {
+	logger.info("Route B: full upload pipeline", {
+		jobId: job.id, cid, sizeBytes, isRepair: !!isRepair,
+	});
+
+	const useStreaming = sizeBytes > STREAM_THRESHOLD;
+
+	const uploadOptions = {
+		filename: filename || `file-${cid}`,
+		sizeBytes,
+		waitForIPNI: true,
+
+		async onPieceCidComputed(pieceCid: string) {
+			await updateFilePieceCid(cid, pieceCid);
+			logger.info("PieceCID computed", { jobId: job.id, cid, pieceCid });
+			if (!isRepair) {
+				await publishSSE(redis, `file:${cid}:status`, {
+					cid, status: "uploading", event: "piece-cid-computed", pieceCid,
+				});
+			}
+		},
+
+		onProgress: (stage: string, data?: unknown) => {
+			logger.info("Upload progress", { jobId: job.id, cid, stage, data });
+		},
+
+		async onProviderProgress({ name, status: spStatus, txHash }: {
+			configId: string; name: string; status: string; txHash?: string;
+		}) {
+			await updateSPStatus({ cid, spId: name, status: spStatus, txHash });
+			logger.info("SP progress", { jobId: job.id, cid, sp: name, status: spStatus, txHash });
+			if (!isRepair) {
+				await publishSSE(redis, `file:${cid}:status`, {
+					cid, status: "uploading",
+					event: "provider-progress",
+					provider: { spId: name, status: spStatus, txHash },
+				});
+			}
+		},
+
+		// onProviderCommit: update individual SP only — file status set in Phase 2
+		async onProviderCommit(result: {
+			configId: string; pieceCid: string; txHash: string;
+			provider: { endpoint: string };
+		}) {
+			const sp = spConfig.providers.find((p) => p.id === result.configId);
+			const spName = sp?.name ?? result.configId;
+
+			await updateSPStatus({
+				cid, spId: spName, status: "stored",
+				url: result.provider.endpoint, verifiedAt: new Date(),
+				pieceCid: result.pieceCid, txHash: result.txHash,
+			});
+
+			logger.info("SP stored", { jobId: job.id, cid, sp: spName, txHash: result.txHash });
+
+			if (!isRepair) {
+				// Read actual confirmed count from DB for accurate SSE
+				const confirmed = await getConfirmedSPCount(cid);
+				const { replicationTotalProviders, replicationMinProviders } = config.filecoin;
+				const fileStatus =
+					confirmed >= replicationTotalProviders ? "fully_replicated"
+						: confirmed >= replicationMinProviders ? "stored"
+						: "uploading";
+
+				await publishSSE(redis, `file:${cid}:status`, {
+					cid, status: fileStatus,
+					event: "provider-committed",
+					confirmedSPs: confirmed,
+					totalProviders: spConfig.providers.length,
+					provider: { spId: spName, status: "stored", txHash: result.txHash, pieceCid: result.pieceCid },
+				});
+			}
+		},
+
+		async onProviderFail(failure: { configId: string; error: string }) {
+			const sp = spConfig.providers.find((p) => p.id === failure.configId);
+			const spName = sp?.name ?? failure.configId;
+			await updateSPStatus({ cid, spId: spName, status: "failed" });
+			if (!isRepair) {
+				await publishSSE(redis, `file:${cid}:status`, {
+					cid, status: "uploading",
+					event: "provider-failed",
+					provider: { spId: spName, status: "failed", error: failure.error },
+				});
+			}
+		},
+	};
+
+	// Use the CID directly for repairs (pinataCid may equal cid)
+	const fetchCid = pinataCid || cid;
+
+	if (useStreaming) {
+		logger.info("Using streaming upload for large file", { jobId: job.id, cid, sizeBytes });
+		const { stream, sizeBytes: fetchedBytes } = await fetchFromIPFSStream(fetchCid);
+		logger.info("IPFS stream opened", { jobId: job.id, cid, fetchedBytes });
+		await uploadCarFromStreamToAllProviders(
+			filecoinClient, stream,
+			uploadOptions as Parameters<typeof uploadCarFromStreamToAllProviders>[2],
+		);
+	} else {
+		logger.info("Using buffered upload for small file", { jobId: job.id, cid, sizeBytes });
+		const fileData = await fetchFromIPFS(fetchCid);
+		logger.info("Fetched file from IPFS", { jobId: job.id, cid, fetchedBytes: fileData.length });
+		await uploadCarToAllProviders(
+			filecoinClient, fileData,
+			uploadOptions as Parameters<typeof uploadCarToAllProviders>[2],
+		);
+	}
+}
+
+// ============================================================================
+// SSE/Redis pub/sub helpers
+// ============================================================================
+
+async function publishSSE(
+	redis: ReturnType<typeof getWorkerRedisConnection>,
+	channel: string,
+	data: Record<string, unknown>,
+): Promise<void> {
+	try {
+		await redis.publish(
+			channel,
+			JSON.stringify(data, (_, v) => (typeof v === "bigint" ? v.toString() : v)),
+		);
+	} catch (err) {
+		logger.warn("Failed to publish SSE event", {
+			channel,
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+}
+
+async function publishFinalStatus(
+	redis: ReturnType<typeof getWorkerRedisConnection>,
+	cid: string,
+	confirmedSPs: number,
+	totalProviders: number,
+	failedProviderIds: string[],
+): Promise<void> {
+	const { replicationTotalProviders, replicationMinProviders } = config.filecoin;
+	const status =
+		confirmedSPs >= replicationTotalProviders ? "fully_replicated"
+			: confirmedSPs >= replicationMinProviders ? "stored"
+			: "partial";
+	await publishSSE(redis, `file:${cid}:status`, {
+		cid, status, confirmedSPs, totalProviders,
+		failedProviders: failedProviderIds,
+	});
+}
+
+// ============================================================================
+// Pinata unpin handler
+// ============================================================================
 
 async function processPinataUnpin(job: Job<PinataUnpinJob>): Promise<void> {
 	const { cid } = job.data;
-
-	logger.info("Processing Pinata unpin job", {
-		jobId: job.id,
-		cid,
-	});
+	logger.info("Processing Pinata unpin job", { jobId: job.id, cid });
 
 	try {
 		await unpinFile(cid);
-		await updatePinataStatus(cid, false);
-
-		logger.info("File unpinned from Pinata", {
-			jobId: job.id,
-			cid,
-		});
 	} catch (error) {
-		logger.error("Pinata unpin failed", {
-			jobId: job.id,
-			cid,
-			error: error instanceof Error ? error.message : String(error),
-		});
-		throw error;
+		const msg = error instanceof Error ? error.message : String(error);
+		if (!msg.includes("404") && !msg.includes("not found") && !msg.includes("NOT_FOUND")) {
+			logger.warn("Pinata unpin API error (may already be unpinned)", { jobId: job.id, cid, error: msg });
+		}
 	}
+
+	try {
+		await updatePinataStatus(cid, false);
+	} catch (dbError) {
+		logger.warn("Failed to update pinata status in DB (non-critical)", {
+			jobId: job.id, cid,
+			error: dbError instanceof Error ? dbError.message : String(dbError),
+		});
+	}
+
+	logger.info("File unpinned from Pinata", { jobId: job.id, cid });
 }
+
+// ============================================================================
+// Worker setup
+// ============================================================================
 
 const connection = getWorkerRedisConnection();
 
@@ -393,16 +516,8 @@ const worker = new Worker(
 					await processFilecoinUpload(job as Job<FilecoinUploadJob>);
 					break;
 
-				case "retrieval-verify":
-					await processRetrievalVerify(job as Job<RetrievalVerifyJob>);
-					break;
-
 				case "pinata-unpin":
 					await processPinataUnpin(job as Job<PinataUnpinJob>);
-					break;
-
-				case "sp-retry-check":
-					await processSPRetryCheck(job as Job<SPRetryCheckJob>);
 					break;
 
 				default:
@@ -420,6 +535,9 @@ const worker = new Worker(
 	{
 		connection: connection.options,
 		concurrency: config.worker.concurrency,
+		lockDuration: config.worker.lockDuration,
+		stalledInterval: config.worker.stalledInterval,
+		maxStalledCount: config.worker.maxStalledCount,
 		limiter: {
 			max: config.worker.rateLimitMax,
 			duration: config.worker.rateLimitDuration,
@@ -428,18 +546,11 @@ const worker = new Worker(
 );
 
 worker.on("completed", (job) => {
-	logger.info("Job completed successfully", {
-		jobId: job.id,
-		jobType: job.name,
-	});
+	logger.info("Job completed successfully", { jobId: job.id, jobType: job.name });
 });
 
 worker.on("failed", (job, error) => {
-	logger.error("Job failed", {
-		jobId: job?.id,
-		jobType: job?.name,
-		error: error.message,
-	});
+	logger.error("Job failed", { jobId: job?.id, jobType: job?.name, error: error.message });
 });
 
 logger.info("Worker started", {
@@ -448,8 +559,98 @@ logger.info("Worker started", {
 	env: config.env,
 });
 
+// ============================================================================
+// Startup cleanup
+// ============================================================================
+
+resetActiveBytes();
+
+(async () => {
+	try {
+		// Reset SP statuses stuck in in-progress states from OOM crashes
+		const resetCount = await resetStaleSPStatuses(10);
+		if (resetCount > 0) {
+			logger.info("Reset stale SP statuses on startup", { resetCount });
+		}
+
+		// Clean up legacy repeatable jobs from previous deployments
+		const queue = getFilecoinQueue();
+		const existing = await queue.getRepeatableJobs();
+		for (const job of existing) {
+			if (job.name === "sp-retry-check") {
+				await queue.removeRepeatableByKey(job.key);
+				logger.info("Removed legacy sp-retry-check repeatable job");
+			}
+		}
+	} catch (error) {
+		logger.warn("Startup cleanup failed (non-critical)", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+})();
+
+// ============================================================================
+// Auto-repair: enqueue individual repair jobs when system is idle
+// ============================================================================
+
+const AUTO_REPAIR_SIGNAL_KEY = "w3stor:auto-repair:signal";
+const AUTO_REPAIR_POLL_MS = 15_000;
+const MAX_REPAIR_BATCH = 10;
+
+async function pollAutoRepairSignal(): Promise<void> {
+	const redis = getWorkerRedisConnection();
+	try {
+		const signal = await redis.get(AUTO_REPAIR_SIGNAL_KEY);
+		if (!signal) return;
+
+		// Consume the signal so other workers don't double-trigger
+		await redis.del(AUTO_REPAIR_SIGNAL_KEY);
+
+		const repairable = await getRepairableFiles(
+			config.filecoin.replicationTotalProviders,
+			MAX_REPAIR_BATCH,
+		);
+
+		if (repairable.length === 0) {
+			logger.info("Auto-repair: no repairable files found");
+			return;
+		}
+
+		let enqueued = 0;
+		for (const file of repairable) {
+			if (!file.walletAddress) continue;
+
+			const jobId = await enqueueRepairUpload({
+				cid: file.cid,
+				sizeBytes: file.sizeBytes,
+				walletAddress: file.walletAddress,
+				pinataCid: file.cid,
+				filename: file.filename || `file-${file.cid}`,
+			});
+
+			if (jobId) enqueued++;
+		}
+
+		logger.info("Auto-repair: enqueued individual repair jobs", {
+			found: repairable.length,
+			enqueued,
+		});
+	} catch (error) {
+		logger.warn("Auto-repair signal poll failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+const repairInterval = setInterval(pollAutoRepairSignal, AUTO_REPAIR_POLL_MS);
+
+// ============================================================================
+// Graceful shutdown
+// ============================================================================
+
 async function shutdownWorker(signal: string): Promise<void> {
 	logger.info(`${signal} received, shutting down worker`);
+	clearInterval(repairInterval);
 	const timeout = setTimeout(() => {
 		logger.warn("Worker shutdown timed out, forcing exit");
 		process.exit(1);

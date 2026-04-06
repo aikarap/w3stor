@@ -1,9 +1,10 @@
 export type { CarFileResult } from "./car-builder";
 export {
 	buildCarToFile,
+	buildCarFromStream,
 	cleanupCarFile,
-	iterateFileContent,
 	MemoryBlockstore,
+	DiskBlockstore,
 } from "./car-builder";
 export type { IpniCheckResult } from "./check-ipni-providers";
 export { checkIpniProviders } from "./check-ipni-providers";

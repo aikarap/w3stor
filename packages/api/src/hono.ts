@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { x402PaymentMiddleware } from "./middleware/x402";
 import { siweMiddleware } from "./middleware/siwe";
+import { uploadBudgetMiddleware } from "./middleware/upload-budget";
 import { a2aRoutes } from "./routes/a2a";
 import { authRoute } from "./routes/auth";
 import { eventsRoute } from "./routes/events";
@@ -15,6 +16,7 @@ import { uploadRoute } from "./routes/upload";
 import { batchUploadRoute } from "./routes/batch-upload";
 import { workflowsRoute } from "./routes/workflows";
 import { graphRoute } from "./routes/graph";
+import { adminRoute } from "./routes/admin";
 
 const app = new Hono();
 
@@ -33,6 +35,10 @@ app.route("/", metricsRoute);
 
 // Auth routes (no payment required)
 app.route("/", authRoute);
+
+// Upload memory budget — reject before buffering if API is overloaded
+app.on("POST", "/upload", uploadBudgetMiddleware);
+app.on("POST", "/batch-upload", uploadBudgetMiddleware);
 
 // x402 payment middleware
 app.on("POST", "/upload", x402PaymentMiddleware);
@@ -61,6 +67,9 @@ app.route("/", attestRoute);
 
 // Graph routes
 app.route("/", graphRoute);
+
+// Admin routes (protected by ADMIN_SECRET)
+app.route("/", adminRoute);
 
 // A2A protocol endpoints
 app.route("/", a2aRoutes);
